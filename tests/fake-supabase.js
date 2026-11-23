@@ -18,6 +18,7 @@
       limit(n) { op.limit = n; return b; },
       maybeSingle() { op.single = true; return b; },
       upsert(row) { op.kind = 'upsert'; op.row = row; return b; },
+      insert(row) { op.kind = 'insert'; op.row = row; return b; },
       then(a, c) { return run(op).then(a, c); },
     };
     return b;

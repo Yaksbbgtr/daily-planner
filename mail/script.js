@@ -31,7 +31,7 @@ function sendNewEmails() {
       const at = m.getDate().getTime();
       if (at <= since || m.getFrom().toLowerCase().includes(me)) continue;
       const body = m.getPlainBody().replace(/\\s+\\n/g, '\\n').trim().slice(0, 1200);
-      mails.push({ id: m.getId(), at, title: m.getSubject(), notes: 'From ' + m.getFrom() + '\\n\\n' + body, link: 'https://mail.google.com/mail/u/0/#all/' + m.getId() });
+      mails.push({ id: m.getId(), at, title: m.getSubject(), notes: 'From ' + m.getFrom() + '\\nTo ' + me + '\\n\\n' + body, link: 'https://mail.google.com/mail/u/?authuser=' + encodeURIComponent(me) + '#all/' + m.getId() });
       newest = Math.max(newest, at);
     }
   }

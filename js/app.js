@@ -318,15 +318,15 @@ const ACT = {
     const { CLOUD } = await import('./config.js');
     const code = mailScript({ url: CLOUD.url, anon: CLOUD.key, key });
     sheet('Email to tasks', `<ol class="steps-how">
-      <li>Open <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener">script.google.com</a> on your computer, signed in to your Gmail account. A new project opens.</li>
-      <li>Select everything in it, delete it, and paste the script. <button type="button" class="primary" data-copy>Copy script</button></li>
+      <li>Open <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener">script.google.com</a> on your computer, signed in to the Gmail account to add. (Several accounts? Pick it from the round picture at the top right of that page.) A new project opens.</li>
+      <li>Click in the code, press <b>⌘A</b>, then <b>⌘V</b>, so the script replaces everything, including the first line <code>function myFunction() {</code>. <button type="button" class="primary" data-copy>Copy script</button></li>
       <li>Press <b>Save</b>, pick <b>setup</b> in the menu next to <b>Run</b>, and press <b>Run</b>.</li>
       <li>Google asks for permission to read your Gmail. Allow it. If it says Google hasn't checked the app, press <b>Advanced</b>, then <b>Go to</b> your project: it is your own script.</li></ol>
-      <p class="hint">From then on, every 5 minutes, new emails become tasks. To pick which emails (only starred ones, say), change the line that starts with <code>const WHICH</code>. The script holds a key that only adds tasks; setting this up again turns the old key off.</p>
+      <p class="hint">From then on, every 5 minutes, new emails become tasks. To pick which emails (only starred ones, say), change the line that starts with <code>const WHICH</code>. Each Gmail account gets its own script and key; the key can only add tasks.</p>
       <textarea id="mailscript" readonly rows="4" aria-label="Script">${esc(code)}</textarea>`, {
       setup: (f) => { $('[data-copy]', f).onclick = async (e) => { try { await navigator.clipboard.writeText(code); e.target.textContent = 'Copied'; } catch { $('#mailscript').select(); } }; },
     });
-    store.setSettings({ mailOn: Date.now() });
+    store.setSettings({ mailOn: store.settings().mailOn || Date.now() });
   },
   backup: () => { flush(); download(`daily-planner-backup-${D.iso()}.json`, JSON.stringify({ app: 'daily-planner', v: 1, made: new Date().toISOString(), recs: store.everything() }), 'application/json'); },
 };

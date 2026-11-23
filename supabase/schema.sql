@@ -92,6 +92,14 @@ alter table public.mail_keys enable row level security;
 drop policy if exists "own mail key" on public.mail_keys;
 create policy "own mail key" on public.mail_keys for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 grant select, insert, update, delete on public.mail_keys to authenticated;
+-- One key per Gmail account, so several accounts can send to the same planner.
+do $$ begin
+  if exists (select 1 from pg_constraint where conname = 'mail_keys_pkey' and pg_get_constraintdef(oid) like '%(user_id)%') then
+    alter table public.mail_keys drop constraint mail_keys_pkey;
+    alter table public.mail_keys add primary key (key_hash);
+  end if;
+end $$;
+alter table public.mail_keys add column if not exists made timestamptz not null default now();
 
 -- Each email becomes one task. Only a title, notes and a link are taken; the task id comes from the
 -- email's id, so the same email never makes two tasks, and a task you delete stays deleted.

@@ -23,6 +23,7 @@ const srv = http.createServer((q, r) => {
     try {
       let rows;
       if (op.kind === 'rpc') rows = (await as(db, u, `select ${op.fn === 'push' ? 'push($1::jsonb)' : 'x'}`, [JSON.stringify(op.args.rows)])).rows;
+      else if (op.kind === 'insert' && op.table === 'mail_keys') rows = (await as(db, u, 'insert into mail_keys (user_id, key_hash) values ($1, $2)', [op.row.user_id, op.row.key_hash])).rows;
       else if (op.kind === 'upsert') rows = (await as(db, u, 'insert into feed_keys (user_id, key_hash) values ($1, $2) on conflict (user_id) do update set key_hash = excluded.key_hash', [op.row.user_id, op.row.key_hash])).rows;
       else if (op.table === 'records') rows = (await as(db, u, 'select body, sv from records where sv > $1 order by sv limit $2', [op.filters[0][2], op.limit])).rows;
       else if (op.table === 'apple') { rows = (await as(db, u, 'select data, updated::text from apple')).rows; return { data: rows[0] || null, error: null }; }

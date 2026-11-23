@@ -114,13 +114,13 @@ export async function signOut() {
 }
 
 // A key for the Mac helper. Only its hash is stored, so the key is shown once.
-async function makeKey(table) {
+async function makeKey(table, many = false) {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   const key = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
   const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key)))].map((b) => b.toString(16).padStart(2, '0')).join('');
-  check(await sb.from(table).upsert({ user_id: state.user.id, key_hash: hash }));
+  check(await (many ? sb.from(table).insert({ user_id: state.user.id, key_hash: hash }) : sb.from(table).upsert({ user_id: state.user.id, key_hash: hash })));
   return key;
 }
 export const makeMacKey = () => makeKey('feed_keys');
-export const makeMailKey = () => makeKey('mail_keys');
+export const makeMailKey = () => makeKey('mail_keys', true);
 export const apple = () => local.get('apple');

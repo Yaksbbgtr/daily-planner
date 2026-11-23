@@ -54,4 +54,9 @@ test('the email key turns emails into tasks once, for its owner only', async () 
   assert.equal((await as(db, a, "select body from records where id = 'mail:m1'")).rows[0].body.del, true);
   assert.equal((await as(db, b, "select count(*)::int as n from records where id like 'mail:%'")).rows[0].n, 0);
   await assert.rejects(as(db, null, 'select add_mail($1, $2::jsonb)', ['wrong', '[]']));
+  // a second Gmail account gets its own key, and the first keeps working
+  const key2 = crypto.randomBytes(32).toString('hex');
+  await as(db, a, 'insert into mail_keys (key_hash) values ($1)', [crypto.createHash('sha256').update(key2).digest('hex')]);
+  assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key2, JSON.stringify([{ id: 'w1', at: 7, title: 'Work' }])])).rows[0].n, 1);
+  assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key, JSON.stringify([{ id: 'p2', at: 8, title: 'Home' }])])).rows[0].n, 1);
 });
