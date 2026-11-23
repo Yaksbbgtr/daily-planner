@@ -31,12 +31,11 @@ export function sheet(title, body, { on = {}, setup, save = 'Save', del, wide } 
   if (d.open) d.close();
   d.className = wide ? 'wide' : '';
   d.setAttribute('aria-label', title);
-  d.innerHTML = `<form method="dialog" novalidate><header><h2>${esc(title)}</h2><button type="button" class="icon" data-close aria-label="Close">${icon('close')}</button></header>
-    <div class="body">${body}</div>
-    ${on.save || del ? `<footer>${del ? `<button type="button" class="danger" data-del>${esc(del)}</button>` : ''}<span class="grow"></span>${on.save ? `<button class="primary" type="submit">${esc(save)}</button>` : ''}</footer>` : ''}</form>`;
+  d.innerHTML = `<form method="dialog" novalidate><span class="grabber" aria-hidden="true"></span><header>${on.save ? '<button type="button" class="txt" data-close>Cancel</button>' : '<span></span>'}<h2>${esc(title)}</h2>${on.save ? `<button class="primary" type="submit">${esc(save)}</button>` : '<button type="button" class="txt strong" data-close>Done</button>'}</header>
+    <div class="body">${body}${del ? `<button type="button" class="danger wide" data-del>${esc(del)}</button>` : ''}</div></form>`;
   const form = $('form', d);
   form.onsubmit = (e) => { e.preventDefault(); if (on.save && on.save(form) !== false) d.close(); };
-  $('[data-close]', d).onclick = () => d.close();
+  d.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => d.close(); });
   if (del) $('[data-del]', d).onclick = () => { d.close(); on.del(); };
   // Close on a press that starts on the backdrop, not a drag that merely ends there.
   d.onpointerdown = (e) => { if (e.target === d) d.close(); };

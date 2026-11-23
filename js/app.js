@@ -25,7 +25,8 @@ function readRoute() {
 }
 function renderNav() {
   const bad = (sync.state.token && sync.state.error) || store.status.saveFailed;
-  $('#nav').innerHTML = `<p class="brand" aria-hidden="true">Daily Planner</p>` + Object.keys(VIEWS).map((v) => `<a href="#/${v}" class="${v}" ${route[0] === v ? 'aria-current="page"' : ''}>${icon(v)}<span>${NAMES[v]}</span>${v === 'settings' && bad ? '<i class="alert" title="Sync problem"></i>' : ''}</a>`).join('');
+  document.body.classList.toggle('syncbad', !!bad);
+  $('#nav').innerHTML = `<p class="brand" aria-hidden="true">Daily Planner</p>` + Object.keys(VIEWS).filter((v) => v !== 'settings').map((v) => `<a href="#/${v}" class="${v}" ${route[0] === v ? 'aria-current="page"' : ''}>${icon(v)}<span>${NAMES[v]}</span>${v === 'settings' && bad ? '<i class="alert" title="Sync problem"></i>' : ''}</a>`).join('');
 }
 function render() {
   // Keep what is being typed: a redraw restores the focused field and its cursor.

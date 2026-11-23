@@ -6,7 +6,7 @@ import { describe, nextAfter } from './recur.js';
 import { day as hebDay } from './jewish.js';
 import { $, esc, icon, sheet, closeSheet, toast, download } from './ui.js';
 
-export const COLORS = ['#4a55b5', '#2f7d6b', '#b5533c', '#8a4a9e', '#b0802a', '#3d7fb0', '#6b7280'];
+export const COLORS = ['#007aff', '#34c759', '#ff3b30', '#af52de', '#ff9500', '#5ac8fa', '#8e8e93'];
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAYNAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -63,14 +63,14 @@ export function quickAdd({ kind = null, date = null } = {}) {
       form.text.oninput = upd;
       form.querySelectorAll('[data-kind]').forEach((b) => { b.onclick = () => { picked = b.dataset.kind; upd(); form.text.focus(); }; });
       const more = document.createElement('button');
-      more.type = 'button'; more.className = 'plain'; more.textContent = 'More options';
+      more.type = 'button'; more.className = 'plain more'; more.textContent = 'More options';
       more.onclick = () => {
         const r = build(form.text.value, picked, date);
         closeSheet();
         if (r.kind === 'note') { store.change(() => store.put(r.rec)); location.hash = '#/notes/' + r.rec.id; }
         else (r.kind === 'event' ? editEvent : editTask)(r.rec, { isNew: true });
       };
-      $('footer', d).prepend(more);
+      $('.body', d).append(more);
       upd();
     },
   });

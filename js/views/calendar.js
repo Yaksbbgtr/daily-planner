@@ -23,7 +23,7 @@ function cell(d, today) {
 function dayPane(d) {
   const h = J.day(d);
   const ev = eventRows(d), due = tasksDue(d).sort(taskSort);
-  return `<section class="card daypane"><header><div><h2>${esc(D.friendly(d) === D.weekday(d) || /^(Today|Tomorrow|Yesterday)$/.test(D.friendly(d)) ? `${D.friendly(d)}, ${D.monthDay(d)}` : D.friendly(d))}</h2><p class="hint" lang="he">${esc(h.full)}</p></div><button class="plain" data-act="quickAdd" data-kind="event" data-date="${d}">Add event</button></header>
+  return `<section class="card daypane"><header><div><h2>${esc(D.friendly(d) === D.weekday(d) || /^(Today|Tomorrow|Yesterday)$/.test(D.friendly(d)) ? `${D.friendly(d)}, ${D.monthDay(d)}` : D.friendly(d))}</h2><p class="hint" lang="he">${esc(h.full)}</p></div><button class="plain" data-act="quickAdd" data-kind="event" data-date="${d}">Add</button></header>
     ${h.items.length ? `<div class="chips">${jewishChips(h.items)}</div>` : ''}
     ${ev ? `<ul class="rows">${ev}</ul>` : ''}${due.length ? `<ul class="rows">${due.map((t) => taskRow(t, { showDate: false })).join('')}</ul>` : ''}
     ${!ev && !due.length ? '<p class="empty">Nothing on this day.</p>' : ''}</section>`;

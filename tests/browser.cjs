@@ -63,9 +63,9 @@ const srv = http.createServer((q, r) => {
   assert.equal(await mac.locator('main img').count(), 0);
   // complete and undo
   await mac.click('.tick[aria-label="Buy challah today"], .tick[aria-label="Buy challah"]');
-  assert.equal(await mac.locator('.today .card > .rows .task').count(), 1);
+  assert.equal(await mac.locator('.today .tasks > .rows .task').count(), 1);
   await mac.click('#toast button');
-  assert.equal(await mac.locator('.today .card > .rows .task').count(), 2);
+  assert.equal(await mac.locator('.today .tasks > .rows .task').count(), 2);
   // repeating task moves on
   await mac.evaluate(() => { location.hash = '#/tasks'; });
   await mac.click('.tick[aria-label="Trash"]');
@@ -148,7 +148,7 @@ const srv = http.createServer((q, r) => {
     assert.ok(o <= 0, `${v} overflows by ${o}`);
     await phone.screenshot({ path: `${shots}/p-${v}.png` });
   }
-  await phone.click('#add'); await phone.fill('#qa', 'Shiur motzei shabbos tomorrow 8:30pm every week'); await phone.screenshot({ path: shots + '/p-add.png' });
+  await phone.click('#add'); await phone.fill('#qa', 'Shiur motzei shabbos tomorrow 8:30pm every week'); await phone.waitForTimeout(400); await phone.screenshot({ path: shots + '/p-add.png' });
   await phone.click('#sheet [data-close]');
   // a change on the phone reaches the Mac; both devices keep their edits
   await phone.evaluate(() => { location.hash = '#/tasks'; });
