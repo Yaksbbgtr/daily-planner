@@ -101,6 +101,17 @@ do $$ begin
 end $$;
 alter table public.mail_keys add column if not exists made timestamptz not null default now();
 
+-- Only emails that ask you to do something become tasks: assignments, due dates, forms to fill in.
+-- Codes, receipts, sales, newsletters, grade notices and plain conversation are left in Gmail.
+create or replace function public.mail_is_task(title text, notes text) returns boolean
+language sql immutable set search_path = public as $$
+  select case
+    when coalesce(title, '') || ' ' || left(coalesce(notes, ''), 1500) ~* '(verification code|security (alert|code)|sign[- ]?in (attempt|code|alert)|new sign[- ]?in|password reset|reset your password|one[- ]time (code|password)|\mreceipt\M|your order|order (confirmed|confirmation)|has shipped|out for delivery|\mdelivered\M|newsletter|webinar|\d+% off|\msale\M|unsubscribe|has been graded|grades? (has been |have been )?(posted|released|updated)|submission (received|confirmed|successful)|you submitted|successfully submitted|thanks for submitting)'
+      then false
+    else coalesce(title, '') || ' ' || left(coalesce(notes, ''), 1500) ~* '(\m(assignments?|homework|hw\d*|due|deadlines?|submit|submissions?|quiz(zes)?|exams?|midterms?|final exam|essays?|papers? (is|are) due|lab reports?|discussion (post|board|reply)|worksheets?|turn in|to[- ]?do|action (required|needed)|rsvp|sign[- ]up|register by|fill out|reminder)\M|please (complete|review|sign|fill|submit|respond|reply|confirm|register|send|upload|read))'
+  end
+$$;
+
 -- Each email becomes one task. Only a title, notes and a link are taken; the task id comes from the
 -- email's id, so the same email never makes two tasks, and a task you delete stays deleted.
 create or replace function public.add_mail(key text, mails jsonb) returns integer
@@ -118,6 +129,7 @@ begin
     nextval('records_sv')
   from jsonb_array_elements(mails) m
   where coalesce(m ->> 'id', '') ~ '^[A-Za-z0-9_-]{1,64}$' and jsonb_typeof(m -> 'at') = 'number'
+    and mail_is_task(m ->> 'title', m ->> 'notes')
   on conflict (user_id, id) do nothing;
   get diagnostics n = row_count;
   return n;

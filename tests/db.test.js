@@ -43,11 +43,11 @@ test('the email key turns emails into tasks once, for its owner only', async () 
   const key = crypto.randomBytes(32).toString('hex');
   const hash = crypto.createHash('sha256').update(key).digest('hex');
   await as(db, a, 'insert into mail_keys (key_hash) values ($1)', [hash]);
-  const mails = [{ id: 'm1', at: 100, title: 'Pay invoice', notes: 'From Bob', link: 'https://mail.google.com/mail/#all/m1', k: 'note', evil: 1 }, { id: 'bad id!', at: 1, title: 'x' }];
+  const mails = [{ id: 'm1', at: 100, title: 'Essay 2 due Friday', notes: 'From Prof', link: 'https://mail.google.com/mail/#all/m1', k: 'note', evil: 1 }, { id: 'bad id!', at: 1, title: 'x' }];
   assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key, JSON.stringify(mails)])).rows[0].n, 1);
   assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key, JSON.stringify(mails)])).rows[0].n, 0);
   const t = (await as(db, a, "select body from records where id = 'mail:m1'")).rows[0].body;
-  assert.equal(t.k, 'task'); assert.equal(t.title, 'Pay invoice'); assert.deepEqual(t.tags, ['email']); assert.equal(t.evil, undefined);
+  assert.equal(t.k, 'task'); assert.equal(t.title, 'Essay 2 due Friday'); assert.deepEqual(t.tags, ['email']); assert.equal(t.evil, undefined);
   // a task deleted in the app stays deleted when the same email comes again
   await push(a, [{ id: 'mail:m1', k: 'task', u: 500, del: true }]);
   await as(db, null, 'select add_mail($1, $2::jsonb)', [key, JSON.stringify(mails)]);
@@ -57,8 +57,8 @@ test('the email key turns emails into tasks once, for its owner only', async () 
   // a second Gmail account gets its own key, and the first keeps working
   const key2 = crypto.randomBytes(32).toString('hex');
   await as(db, a, 'insert into mail_keys (key_hash) values ($1)', [crypto.createHash('sha256').update(key2).digest('hex')]);
-  assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key2, JSON.stringify([{ id: 'w1', at: 7, title: 'Work' }])])).rows[0].n, 1);
-  assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key, JSON.stringify([{ id: 'p2', at: 8, title: 'Home' }])])).rows[0].n, 1);
+  assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key2, JSON.stringify([{ id: 'w1', at: 7, title: 'Action required: timesheet' }])])).rows[0].n, 1);
+  assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key, JSON.stringify([{ id: 'p2', at: 8, title: 'Homework 4 due Monday' }])])).rows[0].n, 1);
 });
 test('the widget key reads only its owner\'s plan', async () => {
   const key = crypto.randomBytes(32).toString('hex');
@@ -76,4 +76,13 @@ test('the widget key reads only its owner\'s plan', async () => {
   assert.deepEqual(d.events.map((e) => e.title), ['Class']);
   assert.deepEqual(d.hide, []);
   await assert.rejects(as(db, null, 'select widget_data($1)', ['wrong']));
+});
+test('only emails that ask for something become tasks', async () => {
+  const yes = [['Assignment 3: Literary Analysis', 'From Canvas'], ['Reminder: quiz tomorrow', ''], ['Hi', 'Please review the attached draft and send comments'],
+    ['Week 5', 'The discussion post is due Sunday at 11:59pm'], ['Action required: complete your FAFSA', ''], ['Midterm review sheet', '']];
+  const no = [['Your verification code is 123456', ''], ['Your order has shipped', ''], ['50% off everything this weekend', ''], ['Assignment 2 has been graded', ''],
+    ['Lunch tomorrow?', 'Hey want to grab lunch'], ['Weekly newsletter', 'Assignments and more. Unsubscribe here'], ['Security alert', 'New sign-in on Mac'], ['Submission received: Essay 1', '']];
+  const is = async (t, n) => (await as(db, null, 'select mail_is_task($1, $2) as ok', [t, n])).rows[0].ok;
+  for (const [t, n] of yes) assert.equal(await is(t, n), true, t);
+  for (const [t, n] of no) assert.equal(await is(t, n), false, t);
 });
