@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleIdentifier</key><string>com.yaksbbgtr.luach.calendar</string>
-<key>CFBundleName</key><string>Luach Calendar</string>
-<key>CFBundleExecutable</key><string>luach-calendar</string>
+<key>CFBundleIdentifier</key><string>com.yaksbbgtr.dailyplanner.calendar</string>
+<key>CFBundleName</key><string>Daily Planner Calendar</string>
+<key>CFBundleExecutable</key><string>daily-planner-calendar</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleShortVersionString</key><string>1.0</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSUIElement</key><true/>
-<key>NSCalendarsFullAccessUsageDescription</key><string>Luach copies your events to your own synced data so they show up in the app. It never changes your calendars.</string>
+<key>NSCalendarsFullAccessUsageDescription</key><string>Daily Planner copies your events to your own synced data so they show up in the app. It never changes your calendars.</string>
 </dict></plist>

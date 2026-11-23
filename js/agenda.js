@@ -1,4 +1,4 @@
-// What happens on a given day, from Luach's own events and Apple Calendar.
+// What happens on a given day, from Daily Planner's own events and Apple Calendar.
 import { all, settings } from './store.js';
 import { occurrence } from './recur.js';
 import { addDays, iso } from './dates.js';

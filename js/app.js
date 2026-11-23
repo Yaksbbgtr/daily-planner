@@ -25,7 +25,7 @@ function readRoute() {
 }
 function renderNav() {
   const bad = (sync.state.token && sync.state.error) || store.status.saveFailed;
-  $('#nav').innerHTML = `<p class="brand" aria-hidden="true">Luach</p>` + Object.keys(VIEWS).map((v) => `<a href="#/${v}" class="${v}" ${route[0] === v ? 'aria-current="page"' : ''}>${icon(v)}<span>${NAMES[v]}</span>${v === 'settings' && bad ? '<i class="alert" title="Sync problem"></i>' : ''}</a>`).join('');
+  $('#nav').innerHTML = `<p class="brand" aria-hidden="true">Daily Planner</p>` + Object.keys(VIEWS).map((v) => `<a href="#/${v}" class="${v}" ${route[0] === v ? 'aria-current="page"' : ''}>${icon(v)}<span>${NAMES[v]}</span>${v === 'settings' && bad ? '<i class="alert" title="Sync problem"></i>' : ''}</a>`).join('');
 }
 function render() {
   // Keep what is being typed: a redraw restores the focused field and its cursor.
@@ -43,7 +43,7 @@ function render() {
     [...main.querySelectorAll(`[data-act="${focusKey[0]}"]`)].find((x) => x.dataset.id === focusKey[1] && x.dataset.day === focusKey[2])?.focus({ preventScroll: true });
   }
   renderNav();
-  document.title = route[0] === 'today' ? 'Luach' : `${NAMES[route[0]]} · Luach`;
+  document.title = route[0] === 'today' ? 'Daily Planner' : `${NAMES[route[0]]} · Daily Planner`;
   stale = false;
 }
 function go() {
@@ -161,7 +161,7 @@ const ACT = {
   },
   syncNow: () => { flush(); sync.syncNow(); },
   syncOff: () => { sync.disconnect(); toast('Sync is off on this device. Your data stays here.'); },
-  backup: () => { flush(); download(`luach-backup-${D.iso()}.json`, JSON.stringify({ app: 'luach', v: 1, made: new Date().toISOString(), recs: store.everything() }), 'application/json'); },
+  backup: () => { flush(); download(`daily-planner-backup-${D.iso()}.json`, JSON.stringify({ app: 'daily-planner', v: 1, made: new Date().toISOString(), recs: store.everything() }), 'application/json'); },
 };
 const SUBMIT = {
   addTask: (f) => {
@@ -196,7 +196,7 @@ const CHANGE = {
     const file = el.files[0];
     if (!file) return;
     try { store.importBackup(JSON.parse(await file.text())); toast('Backup restored'); sync.soon(); }
-    catch { toast('That file is not a Luach backup.'); }
+    catch { toast('That file is not a Daily Planner backup.'); }
     el.value = '';
   },
 };

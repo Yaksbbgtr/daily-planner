@@ -40,6 +40,12 @@ const srv = http.createServer((q, r) => {
     if (kind) await p.click(`[data-kind=${kind}] >> nth=-1`);
     await p.click('#sheet .primary');
   };
+  // data saved under the old name carries over
+  const old = await device({});
+  await old.evaluate(() => { localStorage.clear(); localStorage.setItem('luach.data', JSON.stringify({ v: 1, recs: { x: { id: 'x', k: 'task', u: 1, title: 'Old task', date: null, done: null } } })); });
+  await old.reload(); await old.evaluate(() => { location.hash = '#/tasks'; });
+  assert.match(await old.textContent('main'), /Old task/);
+  await old.evaluate(() => localStorage.clear()); await old.close();
   const mac = await device({ viewport: { width: 1280, height: 860 } });
   await mac.waitForSelector('.nudge');
   await mac.evaluate(() => { location.hash = '#/settings'; });
@@ -85,7 +91,7 @@ const srv = http.createServer((q, r) => {
   await night.fill('#journal', 'Friday text'); await night.clock.fastForward('11:00:00'); await night.clock.runFor(61000);
   await night.waitForFunction(() => document.querySelector('#journal').dataset.day === '2026-11-28');
   assert.equal(await night.inputValue('#journal'), '');
-  assert.match(await night.evaluate(() => localStorage.getItem('luach.data')), /Friday text/);
+  assert.match(await night.evaluate(() => localStorage.getItem('planner.data')), /Friday text/);
   // events: edit, repeat by Hebrew date, validation
   await mac.click('.event'); await mac.fill('#sheet [name=end]', '14:00'); await mac.click('#sheet .primary');
   assert.match(await mac.textContent('#sheet .err'), /not after/);
@@ -124,7 +130,7 @@ const srv = http.createServer((q, r) => {
   await mac.waitForSelector('#syncline');
   await mac.waitForFunction(() => /Synced/.test(document.querySelector('#syncline').textContent));
   const noon = Math.floor(new Date('2026-11-27T12:00:00-05:00') / 1000);
-  gists.g1.files['luach-apple.json'] = { content: JSON.stringify({ v: 1, updated: '2026-11-27T18:00:00Z', events: [
+  gists.g1.files['planner-apple.json'] = { content: JSON.stringify({ v: 1, updated: '2026-11-27T18:00:00Z', events: [
     { id: 'a1', t: 'Staff lunch', cal: 'Work', color: '#1badf8', s: noon, e: noon + 3600 }, { id: 'a2', t: 'Trip', cal: 'Family', color: 'red;x', day: '2026-11-26', endDay: '2026-11-28' }] }) };
   const phone = await device({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await phone.evaluate(() => { location.hash = '#/settings'; });
@@ -153,12 +159,12 @@ const srv = http.createServer((q, r) => {
   await mac.clock.runFor(3000); await mac.waitForTimeout(400);
   await mac.evaluate(() => document.activeElement.blur()); await mac.clock.runFor(50);
   assert.match(await mac.textContent('main'), /From phone/);
-  assert.match(gists.g1.files['luach-sync.json'].content, /From mac/);
+  assert.match(gists.g1.files['planner-sync.json'].content, /From mac/);
   // unreadable cloud data is never overwritten
-  gists.g1.files['luach-sync.json'].content = '{broken';
+  gists.g1.files['planner-sync.json'].content = '{broken';
   await mac.evaluate(() => { location.hash = '#/settings'; }); await mac.click('[data-act=syncNow]');
   await mac.waitForFunction(() => /unreadable/.test(document.querySelector('#syncline').textContent));
-  assert.equal(gists.g1.files['luach-sync.json'].content, '{broken');
+  assert.equal(gists.g1.files['planner-sync.json'].content, '{broken');
   // looks
   await mac.evaluate(() => { location.hash = '#/today'; }); await mac.waitForTimeout(50); await mac.click('#zmanim summary'); await mac.screenshot({ path: shots + '/today.png' });
   await mac.emulateMedia({ colorScheme: 'dark' }); await mac.screenshot({ path: shots + '/today-dark.png' });

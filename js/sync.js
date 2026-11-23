@@ -2,8 +2,8 @@
 import { merge, same, valid } from './merge.js';
 import * as store from './store.js';
 
-const FILE = 'luach-sync.json';
-const APPLE = 'luach-apple.json';
+const FILE = 'planner-sync.json';
+const APPLE = 'planner-apple.json';
 const { local } = store;
 
 export const state = { token: local.get('token'), gist: local.get('gist'), last: local.get('last', 0), busy: false, error: null };
@@ -34,7 +34,7 @@ async function findOrCreate() {
     if (hit) return hit.id;
     if (list.length < 100) break;
   }
-  const g = await api('/gists', { method: 'POST', body: JSON.stringify({ description: 'Luach sync data', public: false, files: { [FILE]: { content: JSON.stringify({ v: 1, recs: store.everything() }) } } }) });
+  const g = await api('/gists', { method: 'POST', body: JSON.stringify({ description: 'Daily Planner sync data', public: false, files: { [FILE]: { content: JSON.stringify({ v: 1, recs: store.everything() }) } } }) });
   return g.id;
 }
 
@@ -72,7 +72,7 @@ export async function syncNow() {
       g = await api(`/gists/${state.gist}`);
     }
     const remote = await readFile(g.files[FILE]);
-    if (remote && (remote.v !== 1 || !remote.recs || !Object.values(remote.recs).every(valid))) throw new Error('The synced data is from a different version of Luach. Reload the app and try again.');
+    if (remote && (remote.v !== 1 || !remote.recs || !Object.values(remote.recs).every(valid))) throw new Error('The synced data is from a different version of Daily Planner. Reload the app and try again.');
     if (remote) store.absorb(remote.recs);
     // A problem with the Apple file must not stop the rest from syncing.
     try { appleChanged = takeApple(await readFile(g.files[APPLE])); } catch { /* keep the last good copy */ }

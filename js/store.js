@@ -1,11 +1,17 @@
 import { merge, valid } from './merge.js';
 
-const KEY = 'luach.data';
+const KEY = 'planner.data';
 export const local = {
-  get(k, d = null) { try { const v = localStorage.getItem('luach.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { if (v === null) localStorage.removeItem('luach.' + k); else localStorage.setItem('luach.' + k, JSON.stringify(v)); return true; } catch { return false; } },
+  get(k, d = null) { try { const v = localStorage.getItem('planner.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { if (v === null) localStorage.removeItem('planner.' + k); else localStorage.setItem('planner.' + k, JSON.stringify(v)); return true; } catch { return false; } },
 };
 
+// Data saved before the rename to Daily Planner.
+try {
+  if (!localStorage.getItem(KEY) && localStorage.getItem('luach.data')) {
+    for (const k of Object.keys(localStorage)) if (k.startsWith('luach.')) localStorage.setItem('planner.' + k.slice(6), localStorage.getItem(k));
+  }
+} catch { /* storage blocked */ }
 let recs = load();
 let txn = null;
 const subs = new Set();
@@ -58,7 +64,7 @@ export function absorb(remote) {
   if (changed) { save(); emit('remote'); }
 }
 export function importBackup(data) {
-  if (data?.app !== 'luach' || !data.recs || !Object.values(data.recs).every(valid)) throw new Error('That file is not a Luach backup.');
+  if (data?.app !== 'daily-planner' || !data.recs || !Object.values(data.recs).every(valid)) throw new Error('That file is not a Daily Planner backup.');
   absorb(data.recs);
 }
 // Another tab saved: fold its changes in.

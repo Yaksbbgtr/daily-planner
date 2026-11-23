@@ -3,27 +3,27 @@
 # Undo with: mac/install.sh --remove
 set -euo pipefail
 cd "$(dirname "$0")"
-label=com.yaksbbgtr.luach.calendar
+label=com.yaksbbgtr.dailyplanner.calendar
 plist="$HOME/Library/LaunchAgents/$label.plist"
-app="$HOME/Applications/Luach Calendar.app"
-log="$HOME/Library/Logs/luach-calendar.log"
+app="$HOME/Applications/Daily Planner Calendar.app"
+log="$HOME/Library/Logs/daily-planner-calendar.log"
 launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
 if [ "${1:-}" = "--remove" ]; then
-  rm -rf "$plist" "$app" "$HOME/Library/Application Support/Luach"
-  echo "Removed. Events already uploaded stay in your gist until you delete luach-apple.json there."
+  rm -rf "$plist" "$app" "$HOME/Library/Application Support/Daily Planner"
+  echo "Removed. Events already uploaded stay in your gist until you delete planner-apple.json there."
   exit 0
 fi
 ./build.sh
 mkdir -p "$HOME/Applications" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
-rm -rf "$app" && cp -R "build/Luach Calendar.app" "$app"
+rm -rf "$app" && cp -R "build/Daily Planner Calendar.app" "$app"
 # Upload again after a reinstall even if nothing changed.
-rm -f "$HOME/Library/Application Support/Luach/last.json"
+rm -f "$HOME/Library/Application Support/Daily Planner/last.json"
 cat > "$plist" <<P
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>$label</string>
-<key>ProgramArguments</key><array><string>$app/Contents/MacOS/luach-calendar</string></array>
+<key>ProgramArguments</key><array><string>$app/Contents/MacOS/daily-planner-calendar</string></array>
 <key>StartInterval</key><integer>900</integer>
 <key>StandardOutPath</key><string>$log</string>
 <key>StandardErrorPath</key><string>$log</string>

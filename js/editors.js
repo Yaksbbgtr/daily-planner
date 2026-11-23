@@ -187,7 +187,7 @@ export function editEvent(e, { isNew, occ } = {}) {
   });
 }
 export function showApple(e, day) {
-  sheet('Apple Calendar', `<h3>${esc(e.title)}</h3><p>${esc(D.friendly(day))}${e.time ? ', ' + D.time(e.time) + (e.end ? ' to ' + D.time(e.end) : '') : ', all day'}</p>${e.loc ? `<p>${esc(e.loc)}</p>` : ''}<p class="hint">From “${esc(e.cal)}”. Change it in Apple Calendar; Luach shows the update after the Mac helper next runs.</p>`);
+  sheet('Apple Calendar', `<h3>${esc(e.title)}</h3><p>${esc(D.friendly(day))}${e.time ? ', ' + D.time(e.time) + (e.end ? ' to ' + D.time(e.end) : '') : ', all day'}</p>${e.loc ? `<p>${esc(e.loc)}</p>` : ''}<p class="hint">From “${esc(e.cal)}”. Change it in Apple Calendar; Daily Planner shows the update after the Mac helper next runs.</p>`);
 }
 
 export function toIcs(e, occ) {
@@ -200,7 +200,7 @@ export function toIcs(e, occ) {
   const FREQ = { daily: 'DAILY', weekly: 'WEEKLY', monthly: 'MONTHLY', yearly: 'YEARLY' };
   const rr = r && FREQ[r.f] ? `RRULE:FREQ=${FREQ[r.f]};INTERVAL=${r.n || 1}${r.days?.length ? ';BYDAY=' + r.days.map((x) => ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][x]).join(',') : ''}${r.until ? ';UNTIL=' + d8(r.until) + (e.time ? 'T235959' : '') : ''}` : null;
   const ex = rr ? (r.ex || []).filter((x) => x >= occ).map((x) => (e.time ? `EXDATE:${d8(x)}T${t6(e.time)}` : `EXDATE;VALUE=DATE:${d8(x)}`)) : [];
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Luach//EN', 'BEGIN:VEVENT', `UID:${e.id}@luach`, `DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d+/g, '')}`,
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Daily Planner//EN', 'BEGIN:VEVENT', `UID:${e.id}@daily-planner`, `DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d+/g, '')}`,
     ...(e.time ? [`DTSTART:${d8(occ)}T${t6(e.time)}`, `DTEND:${d8(last)}T${t6(e.end || D.addMinutes(e.time, 60))}`] : [`DTSTART;VALUE=DATE:${d8(occ)}`, `DTEND;VALUE=DATE:${d8(D.addDays(last, 1))}`]),
     ...(rr ? [rr, ...ex] : []), `SUMMARY:${q(e.title)}`, ...(e.loc ? [`LOCATION:${q(e.loc)}`] : []), ...(e.notes ? [`DESCRIPTION:${q(e.notes)}`] : []), 'END:VEVENT', 'END:VCALENDAR'];
   return lines.join('\r\n') + '\r\n';

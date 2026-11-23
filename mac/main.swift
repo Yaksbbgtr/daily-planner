@@ -1,11 +1,11 @@
-// Copies Apple Calendar events into Luach's secret gist so the web app can show them.
+// Copies Apple Calendar events into Daily Planner's secret gist so the web app can show them.
 // Reads only: it never changes a calendar. Uses the `gh` command line tool to sign in.
 import EventKit
 import Foundation
 
 let args = CommandLine.arguments
-let marker = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Luach/last.json")
-let fileName = "luach-apple.json"
+let marker = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Daily Planner/last.json")
+let fileName = "planner-apple.json"
 
 func stop(_ msg: String, _ code: Int32 = 1) -> Never {
     FileHandle.standardError.write(Data((msg + "\n").utf8))
@@ -43,7 +43,7 @@ let wait = DispatchSemaphore(value: 0)
 nonisolated(unsafe) var granted = false
 store.requestFullAccessToEvents { ok, _ in granted = ok; wait.signal() }
 wait.wait()
-guard granted else { stop("Calendar access is off. Turn it on in System Settings > Privacy & Security > Calendars > Luach Calendar.", 2) }
+guard granted else { stop("Calendar access is off. Turn it on in System Settings > Privacy & Security > Calendars > Daily Planner Calendar.", 2) }
 
 let cal = Calendar.current
 let today = cal.startOfDay(for: Date())
@@ -81,8 +81,8 @@ if args.contains("--dry-run") {
 if let last = try? Data(contentsOf: marker), last == body { print("No changes."); exit(0) }
 
 // The app makes the gist on its first sync; until then there is nowhere to put this.
-let ids = String(decoding: gh(["api", "--paginate", "/gists?per_page=100", "--jq", ".[] | select(.public == false) | select(.files[\"luach-sync.json\"]) | .id"]), as: UTF8.self).split(separator: "\n")
-guard let id = ids.first else { stop("Connect sync in Luach's settings first, then run this again.", 3) }
+let ids = String(decoding: gh(["api", "--paginate", "/gists?per_page=100", "--jq", ".[] | select(.public == false) | select(.files[\"planner-sync.json\"]) | .id"]), as: UTF8.self).split(separator: "\n")
+guard let id = ids.first else { stop("Connect sync in Daily Planner's settings first, then run this again.", 3) }
 
 let payload: [String: Any] = ["v": 1, "updated": ISO8601DateFormatter().string(from: Date()), "events": events]
 let content = String(decoding: try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]), as: UTF8.self)

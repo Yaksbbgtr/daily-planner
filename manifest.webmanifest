@@ -1,5 +1,5 @@
 {
-  "name": "Luach", "short_name": "Luach", "description": "Calendar, tasks and everyday life",
+  "name": "Daily Planner", "short_name": "Planner", "description": "Calendar, tasks and everyday life",
   "start_url": "./", "scope": "./", "display": "standalone",
   "background_color": "#f3f4f8", "theme_color": "#f3f4f8",
   "icons": [

@@ -1,8 +1,8 @@
-# Luach
+# Daily Planner
 
 A personal calendar, task list, habit tracker, notes and Jewish calendar. Static web app, no build step, works offline.
 
-**Open it:** https://yaksbbgtr.github.io/luach/
+**Open it:** https://yaksbbgtr.github.io/daily-planner/
 
 - **Today**: Hebrew date, zmanim, schedule, tasks, habits, journal
 - **Calendar**: month and upcoming views, holidays, parsha, candle lighting; events can repeat by Hebrew date (birthdays, yahrzeits)
