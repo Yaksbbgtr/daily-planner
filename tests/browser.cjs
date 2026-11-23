@@ -184,6 +184,21 @@ const srv = http.createServer((q, r) => {
   }
   await phone.click('#add'); await phone.fill('#qa', 'Shiur motzei shabbos tomorrow 8:30pm every week'); await phone.waitForTimeout(400); await phone.screenshot({ path: shots + '/p-add.png' });
   await phone.click('#sheet [data-close]');
+  // tab bar: the highlight sits on the current tab, and dragging along the bar switches tabs
+  await phone.evaluate(() => { location.hash = '#/today'; }); await phone.waitForTimeout(600);
+  const pillOn = (p) => p.evaluate(() => { const a = document.querySelector('#nav [aria-current]').getBoundingClientRect(), b = document.querySelector('#nav .pill').getBoundingClientRect(); return Math.abs(a.left - b.left) < 3 && Math.abs(a.width - b.width) < 3; });
+  assert.ok(await pillOn(phone), 'highlight on Today');
+  await phone.screenshot({ path: shots + '/p-dock.png', clip: { x: 0, y: 700, width: 390, height: 144 } });
+  const tabAt = (n) => phone.evaluate((n) => { const r = document.querySelectorAll('#nav a')[n].getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, n);
+  const [x0, y0] = await tabAt(0), [x3] = await tabAt(3);
+  await phone.mouse.move(x0, y0); await phone.mouse.down();
+  for (let i = 1; i <= 8; i++) await phone.mouse.move(x0 + ((x3 - x0) * i) / 8, y0);
+  await phone.mouse.up();
+  await phone.waitForFunction(() => location.hash === '#/lists');
+  await phone.waitForTimeout(600);
+  assert.ok(await pillOn(phone), 'highlight slid to Lists');
+  await phone.click('#nav [data-tab=calendar]');
+  await phone.waitForFunction(() => location.hash === '#/calendar');
   // signing out keeps the data here
   await phone.evaluate(() => { location.hash = '#/settings'; });
   await phone.click('[data-act=signOut]');

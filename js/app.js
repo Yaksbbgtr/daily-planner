@@ -23,11 +23,74 @@ function readRoute() {
   const r = location.hash.replace(/^#\/?/, '').split('/').map((x) => { try { return decodeURIComponent(x); } catch { return ''; } });
   return Object.hasOwn(VIEWS, r[0]) ? r : ['today'];
 }
+// The tab bar is built once, so the highlight can slide from tab to tab instead of jumping.
+const TABS = Object.keys(VIEWS).filter((v) => v !== 'settings');
+const nav = $('#nav');
+nav.innerHTML = `<span class="pill" aria-hidden="true"></span>` + TABS.map((v) => `<a href="#/${v}" data-tab="${v}" draggable="false">${icon(v)}<span>${NAMES[v]}</span></a>`).join('');
+const pill = $('.pill', nav);
+function placePill(el, animate = true) {
+  if (!el) { pill.style.opacity = '0'; return; }
+  pill.classList.toggle('still', !animate);
+  pill.style.opacity = '1';
+  pill.style.width = el.offsetWidth + 'px';
+  pill.style.transform = `translateX(${el.offsetLeft}px)`;
+}
+let placedOnce = false;
 function renderNav() {
   const bad = (sync.state.user && sync.state.error) || store.status.saveFailed;
   document.body.classList.toggle('syncbad', !!bad);
-  $('#nav').innerHTML = `<p class="brand" aria-hidden="true">Daily Planner</p>` + Object.keys(VIEWS).filter((v) => v !== 'settings').map((v) => `<a href="#/${v}" class="${v}" ${route[0] === v ? 'aria-current="page"' : ''}>${icon(v)}<span>${NAMES[v]}</span>${v === 'settings' && bad ? '<i class="alert" title="Sync problem"></i>' : ''}</a>`).join('');
+  let current = null;
+  nav.querySelectorAll('a').forEach((a) => {
+    const on = a.dataset.tab === route[0];
+    if (on) { a.setAttribute('aria-current', 'page'); current = a; } else a.removeAttribute('aria-current');
+  });
+  placePill(current, placedOnce);
+  placedOnce = true;
 }
+addEventListener('resize', () => placePill(nav.querySelector('[aria-current]'), false));
+
+// Drag along the bar like in Apple's apps: the highlight follows the finger and lands on the nearest tab.
+let drag = null;
+nav.addEventListener('dragstart', (e) => e.preventDefault());
+nav.addEventListener('pointerdown', (e) => {
+  if (e.button > 0) return;
+  drag = { x: e.clientX, moved: false, id: e.pointerId };
+});
+nav.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  if (!drag.moved && Math.abs(e.clientX - drag.x) < 8) return;
+  if (!drag.moved) { drag.moved = true; nav.setPointerCapture(e.pointerId); nav.classList.add('dragging'); }
+  const box = nav.getBoundingClientRect(), w = pill.offsetWidth;
+  const left = Math.max(4, Math.min(box.width - w - 4, e.clientX - box.left - w / 2));
+  pill.classList.add('still');
+  pill.style.opacity = '1';
+  pill.style.transform = `translateX(${left}px)`;
+  const hit = nearestTab(e.clientX);
+  nav.querySelectorAll('a').forEach((a) => a.classList.toggle('hover', a === hit));
+});
+function nearestTab(x) {
+  let best = null, dist = Infinity;
+  nav.querySelectorAll('a').forEach((a) => { const r = a.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - x); if (d < dist) { dist = d; best = a; } });
+  return best;
+}
+function endDrag(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const was = drag;
+  drag = null;
+  nav.classList.remove('dragging');
+  nav.querySelectorAll('a.hover').forEach((a) => a.classList.remove('hover'));
+  if (!was.moved) return;
+  nav.dataset.justDragged = '1';
+  setTimeout(() => { delete nav.dataset.justDragged; }, 400);
+  const hit = nearestTab(e.clientX);
+  placePill(hit);
+  if (hit && hit.dataset.tab !== route[0]) location.hash = hit.getAttribute('href');
+}
+nav.addEventListener('pointerup', endDrag);
+nav.addEventListener('pointercancel', endDrag);
+// A drag must not also count as a tap on the tab it started on.
+nav.addEventListener('click', (e) => { if (nav.dataset.justDragged) { e.preventDefault(); delete nav.dataset.justDragged; } }, true);
+
 function render() {
   // Keep what is being typed: a redraw restores the focused field and its cursor.
   const a = document.activeElement;

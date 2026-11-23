@@ -271,11 +271,11 @@ h1 { font-weight: 300; letter-spacing: -.01em; }
 .card > header { min-height: 30px; padding-bottom: 10px; }
 .card > header .plain { color: var(--gold); font-size: 15px; }
 .primary, #add { background: linear-gradient(140deg, var(--gold-hi), var(--gold) 45%, var(--gold-lo)); color: var(--on-accent); }
-#add { box-shadow: 0 6px 22px rgb(212 175 55 / .35), inset 0 1px 0 rgb(255 255 255 / .4); }
-#nav { background: var(--bar); border-top: 1px solid var(--edge); }
+#add { box-shadow: 0 8px 24px rgb(0 0 0 / .5), 0 0 18px rgb(212 175 55 / .25), inset 0 1px 0 rgb(255 255 255 / .45); }
+
 #nav a { color: var(--faint); position: relative; }
 #nav a[aria-current] { color: var(--gold); }
-#nav a[aria-current]::after { content: ""; position: absolute; top: -5px; left: 30%; right: 30%; height: 2px; border-radius: 1px; background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+
 .gear { color: var(--gold); }
 .tick::before { border-color: var(--edge); border-width: 1.5px; }
 .task .tick:hover::before { border-color: var(--gold); }
@@ -323,3 +323,32 @@ dialog input:not([type=checkbox], [type=radio], [type=file]), dialog select, dia
 a, .plain, .icon, summary, .filebtn, .more { color: var(--gold); }
 .syncbad .gear::after { box-shadow: 0 0 0 2px var(--bg); }
 @media (min-width: 620px) { dialog { border-bottom: 1px solid var(--edge); } }
+
+/* ---------- floating tab bar with a sliding highlight, like Apple's apps ---------- */
+:root { --dock: min(560px, calc(100vw - 32px)); --dock-h: 64px; --dock-gap: 10px; }
+#nav {
+  position: fixed; z-index: 5; inset: auto auto calc(env(safe-area-inset-bottom) + 10px) calc(50% - var(--dock) / 2);
+  width: calc(var(--dock) - var(--dock-h) - var(--dock-gap)); height: var(--dock-h); padding: 4px; display: flex; gap: 0;
+  border-radius: calc(var(--dock-h) / 2); border: 1px solid rgb(255 255 255 / .09);
+  background: linear-gradient(180deg, rgb(48 46 40 / .72), rgb(18 18 18 / .78));
+  -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
+  box-shadow: 0 10px 30px rgb(0 0 0 / .55), inset 0 1px 0 rgb(255 255 255 / .1);
+  touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
+#nav a { position: relative; z-index: 1; flex: 1; max-width: none; min-height: 0; height: 100%; justify-content: center; padding: 0; gap: 2px; border-radius: 28px; color: var(--soft); font-size: 10.500px; transition: color .25s; -webkit-touch-callout: none; }
+#nav a .i { width: 25px; height: 25px; }
+#nav a[aria-current], #nav a.hover { color: var(--gold-hi); }
+#nav.dragging a[aria-current]:not(.hover) { color: var(--soft); }
+#nav .pill {
+  position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; border-radius: 28px;
+  background: linear-gradient(180deg, rgb(212 175 55 / .24), rgb(212 175 55 / .12));
+  box-shadow: inset 0 0 0 1px rgb(240 210 122 / .28), inset 0 1px 0 rgb(255 255 255 / .12);
+  transition: transform .45s cubic-bezier(.3, 1.35, .45, 1), width .3s ease, opacity .2s;
+}
+#nav .pill.still { transition: opacity .2s; }
+#nav.dragging .pill { transform-origin: center; scale: 1.08; transition: scale .2s, opacity .2s; }
+#add { left: calc(50% + var(--dock) / 2 - var(--dock-h)); right: auto; bottom: calc(env(safe-area-inset-bottom) + 10px); width: var(--dock-h); height: var(--dock-h); }
+#toast { bottom: calc(env(safe-area-inset-bottom) + 90px); }
+main { padding-bottom: calc(env(safe-area-inset-bottom) + 120px); }
+@media (prefers-reduced-motion: reduce) { #nav .pill { transition: opacity .2s; } }
+@media (min-width: 620px) { #toast { bottom: 96px; } }
