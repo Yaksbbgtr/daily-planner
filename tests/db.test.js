@@ -60,3 +60,20 @@ test('the email key turns emails into tasks once, for its owner only', async () 
   assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key2, JSON.stringify([{ id: 'w1', at: 7, title: 'Work' }])])).rows[0].n, 1);
   assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key, JSON.stringify([{ id: 'p2', at: 8, title: 'Home' }])])).rows[0].n, 1);
 });
+test('the widget key reads only its owner\'s plan', async () => {
+  const key = crypto.randomBytes(32).toString('hex');
+  const hash = crypto.createHash('sha256').update(key).digest('hex');
+  await as(db, a, 'insert into widget_keys (key_hash) values ($1)', [hash]);
+  const today = new Date().toISOString().slice(0, 10);
+  await push(a, [{ id: 'w1', k: 'task', u: 900, title: 'Call mom', date: today, done: null, notes: 'secret' },
+    { id: 'w2', k: 'task', u: 900, title: 'Done one', date: today, done: 5 },
+    { id: 'w3', k: 'event', u: 900, title: 'Class', date: '2020-01-06', time: '18:00', rule: { f: 'weekly', days: [1] } },
+    { id: 'w4', k: 'note', u: 900, title: 'Diary' }]);
+  await push(b, [{ id: 'w5', k: 'task', u: 900, title: 'Not mine', date: today, done: null }]);
+  const d = (await as(db, null, 'select widget_data($1) as d', [key])).rows[0].d;
+  assert.deepEqual(d.tasks.map((t) => t.title), ['Call mom']);
+  assert.equal(d.tasks[0].notes, undefined);
+  assert.deepEqual(d.events.map((e) => e.title), ['Class']);
+  assert.deepEqual(d.hide, []);
+  await assert.rejects(as(db, null, 'select widget_data($1)', ['wrong']));
+});

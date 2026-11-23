@@ -124,3 +124,36 @@ begin
 end $$;
 revoke all on function public.add_mail(text, jsonb) from public;
 grant execute on function public.add_mail(text, jsonb) to anon, authenticated;
+
+-- Home Screen widget: a widget on the phone reads today's plan with its own read-only key.
+create table if not exists public.widget_keys (
+  key_hash text primary key check (key_hash ~ '^[0-9a-f]{64}$'),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  made timestamptz not null default now()
+);
+alter table public.widget_keys enable row level security;
+drop policy if exists "own widget key" on public.widget_keys;
+create policy "own widget key" on public.widget_keys for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+grant select, insert, update, delete on public.widget_keys to authenticated;
+
+-- Only what the widget shows: open tasks due soon, events, and Apple events near today.
+create or replace function public.widget_data(key text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare who uuid; lo text := to_char(now() - interval '2 days', 'YYYY-MM-DD'); hi text := to_char(now() + interval '3 days', 'YYYY-MM-DD');
+begin
+  select user_id into who from widget_keys where key_hash = encode(sha256(convert_to(key, 'UTF8')), 'hex');
+  if who is null then raise exception 'unknown key'; end if;
+  return jsonb_build_object(
+    'tasks', coalesce((select jsonb_agg(jsonb_build_object('id', body -> 'id', 'title', body -> 'title', 'date', body -> 'date', 'time', body -> 'time', 'star', body -> 'star') order by body ->> 'date', body ->> 'time')
+      from (select body from records where user_id = who and body ->> 'k' = 'task' and (body ->> 'del') is distinct from 'true'
+        and body ->> 'done' is null and body ->> 'date' <= hi order by body ->> 'date' desc limit 80) t), '[]'),
+    'events', coalesce((select jsonb_agg(jsonb_build_object('id', body -> 'id', 'title', body -> 'title', 'date', body -> 'date', 'endDate', body -> 'endDate', 'time', body -> 'time', 'end', body -> 'end', 'rule', body -> 'rule', 'color', body -> 'color'))
+      from records where user_id = who and body ->> 'k' = 'event' and (body ->> 'del') is distinct from 'true' and body ->> 'date' <= hi
+        and (body ->> 'rule' is not null or coalesce(body ->> 'endDate', body ->> 'date') >= lo)), '[]'),
+    'apple', coalesce((select jsonb_agg(e) from apple a, jsonb_array_elements(a.data -> 'events') e
+      where a.user_id = who and case when e ->> 'day' is not null then e ->> 'day' <= hi and coalesce(e ->> 'endDay', e ->> 'day') >= lo
+        else (e ->> 's')::bigint < extract(epoch from now() + interval '3 days') and (e ->> 'e')::bigint > extract(epoch from now() - interval '2 days') end), '[]'),
+    'hide', coalesce((select body -> 'hideCals' from records where user_id = who and id = 'settings'), '[]'));
+end $$;
+revoke all on function public.widget_data(text) from public;
+grant execute on function public.widget_data(text) to anon, authenticated;

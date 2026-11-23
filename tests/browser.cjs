@@ -23,7 +23,7 @@ const srv = http.createServer((q, r) => {
     try {
       let rows;
       if (op.kind === 'rpc') rows = (await as(db, u, `select ${op.fn === 'push' ? 'push($1::jsonb)' : 'x'}`, [JSON.stringify(op.args.rows)])).rows;
-      else if (op.kind === 'insert' && op.table === 'mail_keys') rows = (await as(db, u, 'insert into mail_keys (user_id, key_hash) values ($1, $2)', [op.row.user_id, op.row.key_hash])).rows;
+      else if (op.kind === 'insert' && ['mail_keys', 'widget_keys'].includes(op.table)) rows = (await as(db, u, 'insert into ' + op.table + ' (user_id, key_hash) values ($1, $2)', [op.row.user_id, op.row.key_hash])).rows;
       else if (op.kind === 'upsert') rows = (await as(db, u, 'insert into feed_keys (user_id, key_hash) values ($1, $2) on conflict (user_id) do update set key_hash = excluded.key_hash', [op.row.user_id, op.row.key_hash])).rows;
       else if (op.table === 'records') rows = (await as(db, u, 'select body, sv from records where sv > $1 order by sv limit $2', [op.filters[0][2], op.limit])).rows;
       else if (op.table === 'apple') { rows = (await as(db, u, 'select data, updated::text from apple')).rows; return { data: rows[0] || null, error: null }; }
@@ -201,6 +201,10 @@ const srv = http.createServer((q, r) => {
   await mac.evaluate(() => { location.hash = '#/settings'; });
   await mac.click('[data-act=mailSetup]'); await mac.waitForSelector('#mailscript');
   assert.match(await mac.inputValue('#mailscript'), /const KEY = "[0-9a-f]{64}";[\s\S]*rpc\/add_mail/);
+  await mac.click('#sheet [data-close]');
+  // phone widget: the setup sheet hands over a Scriptable script with a read-only key
+  await mac.click('[data-act=widgetSetup]'); await mac.waitForSelector('#widgetscript');
+  assert.match(await mac.inputValue('#widgetscript'), /const KEY = "[0-9a-f]{64}";[\s\S]*rpc\/widget_data/);
   await mac.click('#sheet [data-close]');
   await mac.evaluate(() => { location.hash = '#/tasks'; }); await mac.waitForSelector('#newtask');
   // edits made offline go up when the connection is back, and the newest edit wins

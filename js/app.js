@@ -328,6 +328,25 @@ const ACT = {
     });
     store.setSettings({ mailOn: store.settings().mailOn || Date.now() });
   },
+  widgetSetup: async (el) => {
+    el.disabled = true;
+    let key;
+    try { key = await sync.makeWidgetKey(); } catch (e) { toast(e.message); return; } finally { el.disabled = false; }
+    const { widgetScript } = await import('../widget/script.js');
+    const { CLOUD } = await import('./config.js');
+    const code = widgetScript({ url: CLOUD.url, anon: CLOUD.key, key, app: location.origin + location.pathname });
+    sheet('Phone widget', `<ol class="steps-how">
+      <li>Get <a href="https://apps.apple.com/app/scriptable/id1405459188" target="_blank" rel="noopener">Scriptable</a> from the App Store. It is free.</li>
+      <li><button type="button" class="primary" data-copy>Copy widget script</button></li>
+      <li>Open Scriptable, tap <b>+</b> at the top right, and paste. Tap the title at the top and name it <b>Daily Planner</b>. Tap <b>Done</b>. (Tap ▶ to preview it.)</li>
+      <li>On your Home Screen, press and hold an empty spot, tap <b>Edit</b> → <b>Add Widget</b>, pick <b>Scriptable</b>, choose a size, and add it.</li>
+      <li>Press and hold the new widget, tap <b>Edit Widget</b>, and for <b>Script</b> pick <b>Daily Planner</b>. Tapping the widget opens the planner.</li></ol>
+      <p class="hint">Lock Screen too: press and hold the Lock Screen, tap <b>Customize</b> → <b>Lock Screen</b>, tap the widget row, add Scriptable, then tap it and pick Daily Planner. The widget refreshes about every 15 minutes (iPhone decides exactly when). Its key can only read today's tasks and events.</p>
+      <textarea id="widgetscript" readonly rows="4" aria-label="Script">${esc(code)}</textarea>`, {
+      setup: (f) => { $('[data-copy]', f).onclick = async (e) => { try { await navigator.clipboard.writeText(code); e.target.textContent = 'Copied'; } catch { $('#widgetscript').select(); } }; },
+    });
+    store.setSettings({ widgetOn: store.settings().widgetOn || Date.now() });
+  },
   backup: () => { flush(); download(`daily-planner-backup-${D.iso()}.json`, JSON.stringify({ app: 'daily-planner', v: 1, made: new Date().toISOString(), recs: store.everything() }), 'application/json'); },
 };
 const SUBMIT = {

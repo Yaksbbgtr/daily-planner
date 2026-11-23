@@ -123,4 +123,5 @@ async function makeKey(table, many = false) {
 }
 export const makeMacKey = () => makeKey('feed_keys');
 export const makeMailKey = () => makeKey('mail_keys', true);
+export const makeWidgetKey = () => makeKey('widget_keys', true);
 export const apple = () => local.get('apple');
