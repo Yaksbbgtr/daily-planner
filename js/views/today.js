@@ -22,17 +22,6 @@ export function jewishChips(items) {
   return items.map((x) => `<span class="chip ${x.kind}">${esc(x.text)}${x.at ? ` <b>${esc(J.formatTime(x.at))}</b>` : ''}</span>`).join('');
 }
 
-function weekStrip(sel, today) {
-  const start = D.startOfWeek(sel);
-  const days = Array.from({ length: 7 }, (_, i) => D.addDays(start, i));
-  return `<div class="week"><button class="roundbtn small" data-act="dayMove" data-n="-7" aria-label="Previous week">${icon('left')}</button>
-    <div class="days7">${days.map((d) => {
-      const busy = eventsOn(d).length + tasksDue(d).length > 0;
-      return `<button class="daybub ${d === today ? 'is-today' : ''} ${d === sel ? 'is-sel' : ''} ${J.isRestDay(d) ? 'rest' : ''}" data-act="pickToday" data-day="${d}" aria-label="${esc(D.friendly(d, today))}" ${d === sel ? 'aria-current="date"' : ''}>
-        <span class="wd">${D.weekday(d).slice(0, 1)}</span><b>${+d.slice(8)}</b><i class="${busy ? 'on' : ''}"></i></button>`;
-    }).join('')}</div>
-    <button class="roundbtn small" data-act="dayMove" data-n="7" aria-label="Next week">${icon('right')}</button></div>`;
-}
 
 
 function glance(day, today, dueAll) {
@@ -126,7 +115,6 @@ export function render(sub) {
   return `<div class="today"><header class="hero"><div><p class="eyebrow">${esc(hello)}</p><h1>${esc(D.weekday(day))}</h1>
       <p class="sub">${esc(D.monthDay(day))} · <span lang="he" dir="rtl">${esc(heb.full)}</span>${heb.night ? ' · after sunset' : ''}</p></div>
       <a class="roundbtn gear" href="#/settings" aria-label="Settings">${icon('settings')}</a></header>
-    ${weekStrip(day, today)}
     ${day !== today ? `<button class="pillbtn back" data-act="pickToday" data-day="${today}">Back to today</button>` : ''}
     ${items.length || parsha ? `<div class="chips">${jewishChips(items)}${parsha ? `<span class="chip parsha">${esc(parsha)}</span>` : ''}</div>` : ''}
     ${glance(day, today, dueAll)}

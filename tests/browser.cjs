@@ -90,7 +90,7 @@ const srv = http.createServer((q, r) => {
   // habit
   await mac.evaluate(() => { location.hash = '#/today'; });
   for (const h of ['Walk 20 minutes', 'Read']) { await mac.click('[data-act=editHabit]:not([data-id])'); await mac.fill('#sheet [name=title]', h); await mac.click('#sheet .primary'); }
-  for (const d of ['2026-11-25', '2026-11-26', '2026-11-27']) { await mac.click(`.daybub[data-day="${d}"]`); await mac.locator('.hab .habbtn').first().click(); }
+  for (const d of ['2026-11-25', '2026-11-26', '2026-11-27']) { await mac.evaluate((d) => import('./js/views/today.js').then((m) => { m.st.day = d; dispatchEvent(new HashChangeEvent('hashchange')); }), d); await mac.waitForFunction((d) => document.querySelector('.habbtn')?.dataset.day === d, d); await mac.locator('.hab .habbtn').first().click(); }
   assert.match(await mac.textContent('.hab .meta'), /3 in a row/);
   await mac.screenshot({ path: shots + '/today-habits.png' });
   await mac.locator('.hab .habname').first().click(); await mac.waitForSelector('.hstats');
@@ -271,6 +271,15 @@ const srv = http.createServer((q, r) => {
     await phone.screenshot({ path: `${shots}/theme-${t}.png` });
   }
   await phone.evaluate(() => { location.hash = '#/settings'; }); await phone.click('.themes input[value=dusk]', { force: true });
+  // your own colors, which reach the other device too
+  await phone.click('.swatches input[name=accent][value="#0088ff"]', { force: true });
+  await phone.click('.swatches input[name=bg][value="#ffffff"]', { force: true });
+  assert.equal(await phone.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()), '#0088ff');
+  assert.equal(await phone.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(255, 255, 255)');
+  await phone.evaluate(() => { location.hash = '#/today'; }); await phone.waitForTimeout(80);
+  await phone.screenshot({ path: `${shots}/own-colors.png` });
+  await phone.evaluate(() => { location.hash = '#/settings'; }); await phone.click('[data-act=resetColors]');
+  assert.equal(await phone.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(5, 5, 5)');
   // plan the day, wrap it up, and the focus timer
   await mac.evaluate(() => { location.hash = '#/today'; });
   await mac.evaluate(() => import('./js/rituals.js').then((m) => m.planDay())); await mac.waitForSelector('#sheet[open]');

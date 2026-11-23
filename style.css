@@ -142,20 +142,7 @@ details > .plain { margin: 0 16px 16px; }
 .hero .sub [lang=he] { color: var(--holy); }
 .gear { position: relative; }
 .syncbad .gear::after { content: ""; position: absolute; top: 4px; right: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--late); box-shadow: 0 0 0 3px var(--bg); }
-.week { display: flex; align-items: center; gap: 2px; margin: 0 -8px 18px; }
-.week .roundbtn.small { width: 32px; height: 44px; }
 .calbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: -8px 0 18px; }
-.days7 { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.daybub { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 8px; border-radius: 999px; min-height: 76px; color: var(--soft); }
-.daybub .wd { font-size: 13px; font-weight: 700; }
-.daybub b { font-size: 21px; font-weight: 800; color: var(--ink); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
-.daybub i { width: 6px; height: 6px; border-radius: 50%; }
-.daybub i.on { background: var(--accent2); }
-.daybub.rest b { color: var(--holy); }
-.daybub.is-today b { box-shadow: inset 0 0 0 2.500px var(--accent); }
-.daybub.is-sel { background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
-.daybub.is-sel b { background: var(--accent); color: var(--on-accent); box-shadow: none; }
-.week .roundbtn { background: none; box-shadow: none; color: var(--soft); }
 .pillbtn.back { margin: -6px 0 18px; min-height: 42px; padding: 8px 18px; font-size: 15px; }
 .glance { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 26px; }
 .glancecard { background: var(--card); border-radius: var(--r); padding: 18px; min-height: 132px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; text-decoration: none; color: var(--ink); text-align: left; box-shadow: inset 0 0 0 1px var(--line); }
@@ -489,3 +476,64 @@ svg.g.big { width: 56px; height: 56px; stroke-width: 1.5; }
 .star svg.g.s { fill: currentColor; margin-right: 2px; }
 .chip svg.g { font-size: 18px; vertical-align: -3px; margin-right: 2px; }
 .cd .bubble { font-size: 22px; }
+
+/* ---------- flat colors: no gradients ---------- */
+body { background: var(--bg); }
+.glancecard.sun { background: color-mix(in srgb, var(--accent) 16%, var(--card)); }
+.glancecard.sun.holy { background: color-mix(in srgb, var(--holy) 16%, var(--card)); }
+.ritual { background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.tile, .tile.project { background: var(--card); }
+#focus { background: var(--bg); }
+
+/* ---------- your own colors ---------- */
+.swatches { margin-top: 22px; }
+.swatches .row { display: flex; flex-wrap: wrap; gap: 10px; }
+.swatches label { position: relative; display: block; }
+.swatches input { position: absolute; inset: 0; opacity: 0; margin: 0; width: 100%; height: 100%; cursor: pointer; }
+.swatches span { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(127 127 127 / .35); }
+.swatches span.auto { background: var(--card2); font-size: 11px; font-weight: 800; color: var(--soft); }
+.swatches .pick span { background: var(--card2); font-size: 22px; font-weight: 500; color: var(--soft); }
+.swatches :checked + span, .swatches .pick span.on { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--ink); }
+.swatches :focus-visible + span { outline: 3px solid var(--accent); outline-offset: 4px; }
+
+/* ---------- type: smaller and quieter ---------- */
+:root { --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", system-ui, sans-serif; --serif: ui-serif, "New York", "Iowan Old Style", Georgia, serif; }
+body { font-size: 15px; line-height: 1.4; letter-spacing: -.005em; }
+h1 { font-family: var(--serif); font-size: 26px; font-weight: 600; letter-spacing: 0; }
+.hero h1 { font-size: clamp(30px, 8vw, 38px); font-weight: 600; }
+.hero .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+.hero .sub { font-size: 14px; font-weight: 500; }
+h2 { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--soft); }
+.t, .ckname, .habname .t { font-weight: 500; }
+.cklist .ckname { font-size: 15px; }
+.meta { font-size: 13px; font-weight: 400; }
+.hint, .small { font-size: 13px; }
+.chip { font-size: 13px; font-weight: 500; }
+.chips.folders .chip { font-size: 14px; padding: 10px 16px; }
+.seg button { font-size: 13px; font-weight: 600; }
+button, .primary, .plain, .pillbtn { font-weight: 600; }
+.glancecard .big { font-family: var(--serif); font-size: 26px; font-weight: 600; }
+.glancecard .lbl { font-size: 12px; font-weight: 500; }
+.parts .pn { font-size: 12px; font-weight: 600; }
+.parts .pc { font-size: 11px; }
+input.title { font-family: var(--serif); font-size: 24px !important; font-weight: 600; }
+.tile h2 { font-family: var(--serif); font-size: 18px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.hstats b, .bigcount { font-family: var(--serif); font-weight: 600; }
+.hstats b { font-size: 24px; }
+legend { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+#nav a { font-size: 10px; font-weight: 500; }
+.empty.big { font-size: 15px; }
+
+/* ---------- calendar rows with a real switch ---------- */
+.calrow { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 0; color: var(--ink); font-weight: 500; }
+.calrow + .calrow { border-top: 1px solid var(--line); }
+.calrow .dot { flex: none; width: 12px; height: 12px; border-radius: 50%; }
+.calrow .nm { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+input.switch, .check input[type=checkbox] { -webkit-appearance: none; appearance: none; flex: none; position: relative; width: 50px; height: 30px; margin: 0; border-radius: 999px; background: var(--card2); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; transition: background .2s; }
+input.switch::after, .check input[type=checkbox]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); transition: transform .2s; }
+input.switch:checked, .check input[type=checkbox]:checked { background: var(--accent); box-shadow: none; }
+input.switch:checked::after, .check input[type=checkbox]:checked::after { transform: translateX(20px); background: var(--on-accent); }
+input.switch:focus-visible, .check input[type=checkbox]:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+.check { font-size: 15px; font-weight: 500; }
+.themes label { font-weight: 500; font-size: 13px; }

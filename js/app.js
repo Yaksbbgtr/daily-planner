@@ -17,14 +17,29 @@ import * as focus from './focus.js';
 import * as checklist from './checklist.js';
 
 // The look, applied before anything draws. A copy on this device avoids a flash of the default.
-export function applyTheme(t) {
+// On top of the chosen look, your own accent and background colors (Settings > Look).
+const HEX = /^#[0-9a-f]{6}$/i;
+const lum = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const COLORVARS = ['--accent', '--on-accent', '--bg', '--card', '--card2', '--ink', '--soft', '--faint', '--line', '--dock-bg', 'color-scheme'];
+export function applyTheme(t, own = store.local.get('colors') || {}) {
   const theme = ['dusk', 'daylight', 'gold', 'ocean'].includes(t) ? t : 'dusk';
-  document.documentElement.dataset.theme = theme;
+  const root = document.documentElement, st = root.style;
+  root.dataset.theme = theme;
   store.local.set('theme', theme);
-  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-  document.querySelector('meta[name=theme-color]')?.setAttribute('content', bg);
+  store.local.set('colors', own);
+  COLORVARS.forEach((v) => st.removeProperty(v));
+  if (HEX.test(own.accent || '')) { st.setProperty('--accent', own.accent); st.setProperty('--on-accent', lum(own.accent) > 0.4 ? '#111111' : '#ffffff'); }
+  if (HEX.test(own.bg || '')) {
+    const light = lum(own.bg) > 0.4, ink = light ? '#1a1a1a' : '#f5f5f5', mix = (p) => `color-mix(in srgb, ${ink} ${p}%, ${own.bg})`;
+    st.setProperty('--bg', own.bg); st.setProperty('--card', light ? `color-mix(in srgb, #000 4%, ${own.bg})` : mix(7)); st.setProperty('--card2', light ? `color-mix(in srgb, #000 8%, ${own.bg})` : mix(12));
+    st.setProperty('--ink', ink); st.setProperty('--soft', mix(62)); st.setProperty('--faint', mix(40)); st.setProperty('--line', light ? 'rgb(0 0 0 / .08)' : 'rgb(255 255 255 / .08)');
+    st.setProperty('--dock-bg', `color-mix(in srgb, ${mix(12)} 85%, transparent)`); st.setProperty('color-scheme', light ? 'light' : 'dark');
+  }
+  const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', HEX.test(own.bg || '') ? own.bg : bg);
 }
-applyTheme(store.local.get('theme') || store.settings().theme);
+const ownColors = () => { const s = store.settings(); return { accent: s.accent || null, bg: s.bg || null }; };
+applyTheme(store.local.get('theme') || store.settings().theme, store.local.get('colors') || ownColors());
 
 const VIEWS = { today, calendar, tasks, lists, notes, settings };
 const NAMES = { today: 'Today', calendar: 'Calendar', tasks: 'Tasks', lists: 'Lists', notes: 'Notes', settings: 'Settings' };
@@ -175,7 +190,6 @@ const ACT = {
   editHabit: (el) => E.editHabit(el.dataset.id ? store.get(el.dataset.id) : null),
   toggleHabit: (el) => E.toggleHabit(el.dataset.id, el.dataset.day),
   pickToday: (el) => { today.st.day = el.dataset.day; render(); },
-  dayMove: (el) => { today.st.day = D.addDays(today.st.day || D.iso(), +el.dataset.n); render(); },
   planDay: () => rituals.planDay(),
   wrapDay: () => rituals.wrapDay(),
   rollOver: () => rituals.rollOver(),
@@ -295,6 +309,7 @@ const ACT = {
     try { for (const k of await caches.keys()) if (k.startsWith('planner-')) await caches.delete(k); } catch { /* none */ }
     location.replace(location.pathname + '?v=' + Date.now() + location.hash);
   },
+  resetColors: () => { store.setSettings({ accent: null, bg: null }); applyTheme(store.settings().theme, ownColors()); },
   backup: () => { flush(); download(`daily-planner-backup-${D.iso()}.json`, JSON.stringify({ app: 'daily-planner', v: 1, made: new Date().toISOString(), recs: store.everything() }), 'application/json'); },
 };
 const SUBMIT = {
@@ -313,7 +328,9 @@ const SUBMIT = {
   },
 };
 const CHANGE = {
-  theme: (el) => { applyTheme(el.value); store.setSettings({ theme: el.value }); },
+  theme: (el) => { applyTheme(el.value, ownColors()); store.setSettings({ theme: el.value }); },
+  accent: (el) => { store.setSettings({ accent: el.value || null }); applyTheme(store.settings().theme, ownColors()); },
+  bg: (el) => { store.setSettings({ bg: el.value || null }); applyTheme(store.settings().theme, ownColors()); },
   city: (el) => { if (el.value !== 'keep') store.setSettings({ loc: el.value ? J.cityLoc(el.value) : null }); },
   candles: (el) => store.setSettings({ candles: +el.value }),
   ends: (el) => store.setSettings({ ends: el.value }),
@@ -411,7 +428,7 @@ const busyTyping = () => main.contains(document.activeElement) && document.activ
 store.onChange((why) => {
   if (why !== 'remote') sync.soon();
   if (why === 'quiet') return;
-  if (why === 'remote' && store.settings().theme && store.settings().theme !== document.documentElement.dataset.theme) applyTheme(store.settings().theme);
+  if (why === 'remote') { const s = store.settings(), c = store.local.get('colors') || {}; if ((s.theme && s.theme !== document.documentElement.dataset.theme) || (s.accent || null) !== (c.accent || null) || (s.bg || null) !== (c.bg || null)) applyTheme(s.theme, ownColors()); }
   // Never redraw under someone typing because another device changed something.
   if (why === 'remote' && busyTyping()) { stale = true; return; }
   render();
