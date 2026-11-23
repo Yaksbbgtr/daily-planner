@@ -127,11 +127,11 @@ details > .plain { margin: 0 16px 16px; }
 .event, .task .text { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 20px; min-height: 76px; text-align: left; }
 .event .what, .task .text .tx { flex: 1; min-width: 0; }
 .task .bubble { width: 46px; height: 46px; font-size: 23px; }
-.task .tick, .check { flex: none; width: 64px; align-self: stretch; position: relative; }
-.tick::before, .check::before { content: ""; position: absolute; right: 20px; top: 50%; width: 32px; height: 32px; margin-top: -16px; border-radius: 50%; border: 2.500px solid var(--faint); box-sizing: border-box; transition: background .2s, border-color .2s, transform .2s; }
+.task .tick, button.check { flex: none; width: 64px; align-self: stretch; position: relative; }
+.tick::before, button.check::before { content: ""; position: absolute; right: 20px; top: 50%; width: 32px; height: 32px; margin-top: -16px; border-radius: 50%; border: 2.500px solid var(--faint); box-sizing: border-box; transition: background .2s, border-color .2s, transform .2s; }
 .task .tick { order: 2; }
-.done .tick::before, .done .check::before, [aria-checked=true].check::before { background: var(--good); border-color: var(--good); transform: scale(1.05); }
-.done .tick::after, .done .check::after, [aria-checked=true].check::after { content: ""; position: absolute; right: 31px; top: 50%; width: 8px; height: 14px; margin-top: -10px; border: solid #fff; border-width: 0 3px 3px 0; transform: rotate(43deg); }
+.done .tick::before, .done button.check::before, button[aria-checked=true].check::before { background: var(--good); border-color: var(--good); transform: scale(1.05); }
+.done .tick::after, .done button.check::after, button[aria-checked=true].check::after { content: ""; position: absolute; right: 31px; top: 50%; width: 8px; height: 14px; margin-top: -10px; border: solid #fff; border-width: 0 3px 3px 0; transform: rotate(43deg); }
 .done .t { color: var(--soft); text-decoration: line-through; text-decoration-thickness: 2px; }
 .done .bubble { filter: grayscale(.7); opacity: .6; }
 
@@ -266,6 +266,7 @@ input.title { font-size: 30px !important; font-weight: 800; border: 0; backgroun
 /* bottom sheet */
 dialog { border: 0; padding: 0; background: var(--bg); color: var(--ink); width: 100%; max-width: 100%; max-height: calc(100dvh - env(safe-area-inset-top) - 12px); margin: auto 0 0; border-radius: 32px 32px 0 0; overflow: auto; overscroll-behavior: contain; animation: rise .32s cubic-bezier(.2, .9, .3, 1); box-shadow: var(--shadow); }
 @keyframes rise { from { transform: translateY(40%); opacity: .4; } }
+dialog.swap { animation: none; }
 dialog::backdrop { background: rgb(0 0 0 / .55); }
 .grabber { display: block; width: 44px; height: 6px; border-radius: 3px; background: var(--card2); margin: 10px auto 0; }
 dialog form > header { position: sticky; top: 0; z-index: 2; background: var(--bg); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 8px 12px 10px; }
@@ -362,13 +363,16 @@ legend { font-size: 14px; font-weight: 700; color: var(--soft); margin-bottom: 8
   .grabber { display: none; }
   dialog form > header { padding-top: 14px; }
 }
-@media (max-width: 380px) {
-  .glance { grid-template-columns: 1fr; }
+/* On a phone the narrower time column leaves the task's name room next to its pencil and tick. */
+@media (max-width: 430px) {
   .timeline::before { left: 112px; }
   .timeline > li { grid-template-columns: 66px 1fr; }
   .timeline .zman .dot { left: 100px; }
   .timeline .nowline::before { left: 108px; } .timeline .nowline::after { left: 107px; } .timeline .nowline span { width: 66px; }
   .timeline .gap { padding-left: 158px; }
+}
+@media (max-width: 380px) {
+  .glance { grid-template-columns: 1fr; }
   .daybub b { width: 36px; height: 36px; font-size: 19px; }
 }
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; transition: none !important; } }
@@ -565,4 +569,8 @@ input.switch:focus-visible, .check input[type=checkbox]:focus-visible { outline:
 .cklist .ck { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; text-align: start; }
 .cklist li { padding-right: 6px; }
 .cklist .ck .ckname { flex: 1; min-width: 0; display: flex; align-items: center; }
-.timeline .task-block .editbtn { width: 40px; height: 40px; }
+.timeline .task-block .editbtn { width: 36px; height: 40px; }
+.timeline .task-block { gap: 10px; }
+.timeline .task-block .check { width: 44px; }
+.timeline .task-block .check::before { right: 6px; }
+.timeline .task-block .check::after { right: 17px; }

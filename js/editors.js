@@ -86,8 +86,8 @@ export function quickAdd({ kind = null, date = null } = {}) {
       more.type = 'button'; more.className = 'plain more'; more.textContent = 'More options';
       more.onclick = () => {
         const r = build(form.text.value, picked, date);
-        closeSheet();
-        if (r.kind === 'note') { store.change(() => store.put(r.rec)); location.hash = '#/notes/' + r.rec.id; }
+        if (r.kind === 'note') { closeSheet(); store.change(() => store.put(r.rec), { quiet: true }); location.hash = '#/notes/' + r.rec.id; }
+        // The full form takes over the open sheet, rather than closing it and rising again.
         else (r.kind === 'event' ? editEvent : editTask)(r.rec, { isNew: true });
       };
       $('.body', d).append(more);
@@ -142,13 +142,14 @@ export function editProject(p) {
       save: (f) => {
         const title = f.title.value.trim();
         if (!title) return fail(f, 'Give the project a name.');
-        store.change(() => store.put({ ...p, title, emoji: f.emoji.value || null, color: f.color.value, due: D.isRealDate(f.due.value) ? f.due.value : null, notes: f.notes.value.trim(), done: f.done?.checked ? p.done || Date.now() : null }));
+        // A new project opens on its own page, which the route change draws.
+        store.change(() => store.put({ ...p, title, emoji: f.emoji.value || null, color: f.color.value, due: D.isRealDate(f.due.value) ? f.due.value : null, notes: f.notes.value.trim(), done: f.done?.checked ? p.done || Date.now() : null }), { quiet: isNew });
         if (isNew) location.hash = '#/tasks/projects/' + p.id;
       },
       // Its tasks are kept; they just stop belonging to a project.
       del: () => {
         const ts = store.all('task').filter((t) => t.proj === p.id);
-        const undo = store.change(() => { ts.forEach((t) => store.put({ ...t, proj: null })); store.remove(p.id); });
+        const undo = store.change(() => { ts.forEach((t) => store.put({ ...t, proj: null })); store.remove(p.id); }, { quiet: true });
         location.hash = '#/tasks/projects';
         toast(ts.length ? `Project deleted. Its ${ts.length} tasks are still in Tasks.` : 'Project deleted', undo);
       },

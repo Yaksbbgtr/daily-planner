@@ -273,6 +273,34 @@ const srv = http.createServer((q, r) => {
   await phone.mouse.up();
   await phone.waitForFunction(() => /Task done|Done/.test(document.querySelector('#toast')?.textContent || ''));
   assert.ok(await phone.evaluate(() => !document.querySelector('#sheet').open), 'a swipe is not a tap');
+  // a tap on the backdrop closes the sheet and nothing else: it must not also tick the task under the finger
+  const under = await phone.evaluate(() => { const li = document.querySelector('li.task:not(.done)'); li.scrollIntoView({ block: 'start' }); const r = li.querySelector('.text').getBoundingClientRect(); return { id: li.querySelector('[data-act=toggleTask]').dataset.id, x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await phone.evaluate(() => import('./js/ui.js').then((m) => m.sheet('Short', '<p>Hi</p>')));
+  await phone.waitForSelector('#sheet[open]');
+  assert.ok(under.y < (await phone.locator('#sheet').boundingBox()).y, 'the task is under the backdrop');
+  await phone.touchscreen.tap(under.x, under.y);
+  await phone.waitForFunction(() => !document.querySelector('#sheet').open);
+  assert.equal(await phone.evaluate((id) => !!JSON.parse(localStorage.getItem('planner.data')).recs[id].done, under.id), false, 'the backdrop tap did not reach the task');
+  // More options turns the quick add sheet into the full form in place, instead of closing and rising a second time
+  await phone.evaluate(() => import('./js/editors.js').then((m) => m.quickAdd({}))); await phone.waitForSelector('#qa');
+  await phone.fill('#qa', 'Call Sam');
+  await phone.evaluate(() => { window.__shown = 0; const s = HTMLDialogElement.prototype.showModal; HTMLDialogElement.prototype.showModal = function () { window.__shown++; return s.call(this); }; });
+  await phone.tap('#sheet .more');
+  await phone.waitForSelector('#sheet[aria-label="New task"]');
+  assert.ok(await phone.evaluate(() => window.__shown === 1 && getComputedStyle(document.querySelector('#sheet')).animationName === 'none'), 'the sheet swaps without a second rise');
+  // a switch row (Star this task) spans the sheet, not squeezed to the width of a task tick
+  assert.ok(await phone.evaluate(() => document.querySelector('#sheet label.check').offsetWidth > 250), 'switch rows are full width');
+  await phone.tap('#sheet [data-close]');
+  // a new note, list or project opens its page with one draw, without first redrawing the page it came from
+  const draws = () => phone.evaluate(() => { window.__draws = 0; window.__mo?.disconnect(); window.__mo = new MutationObserver((ms) => { window.__draws += ms.filter((m) => m.addedNodes.length).length; }); window.__mo.observe(document.querySelector('main'), { childList: true }); });
+  await phone.evaluate(() => { location.hash = '#/notes'; }); await phone.waitForSelector('[data-act=newNote]');
+  await draws(); await phone.tap('[data-act=newNote]'); await phone.waitForSelector('#notetitle'); await phone.waitForTimeout(100);
+  assert.equal(await phone.evaluate(() => window.__draws), 1, 'new note draws once');
+  await phone.tap('[data-act=deleteNote]');
+  await phone.evaluate(() => { location.hash = '#/lists'; }); await phone.waitForSelector('main [data-act=renameList]');
+  await draws(); await phone.tap('main [data-act=renameList]'); await phone.fill('#sheet [name=title]', 'Packing'); await phone.tap('#sheet .primary'); await phone.waitForSelector('#newitem'); await phone.waitForTimeout(100);
+  assert.equal(await phone.evaluate(() => window.__draws), 1, 'new list draws once');
+  await phone.evaluate(() => window.__mo.disconnect());
   // signing out keeps the data here
   await phone.evaluate(() => { location.hash = '#/settings'; });
   await phone.click('[data-act=signOut]');
@@ -335,12 +363,20 @@ const srv = http.createServer((q, r) => {
   // an open app reloads itself when a newer version goes live
   await off.close(); await c.close();
   const up = await device({});
-  await up.route('**/?check=*', async (r) => { const res = await r.fetch(); r.fulfill({ response: res, body: (await res.text()).replace(/app-version" content="[^"]+"/, 'app-version" content="newer"') }); });
+  // an older copy (a stale server) never reloads it
+  let liveVersion = '2000.1.1-1';
+  await up.route('**/?check=*', async (r) => { const res = await r.fetch(); r.fulfill({ response: res, body: (await res.text()).replace(/app-version" content="[^"]+"/, `app-version" content="${liveVersion}"`) }); });
+  let reloaded = false; const seen = () => { reloaded = true; }; up.on('framenavigated', seen);
+  await up.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await up.waitForTimeout(500);
+  assert.equal(reloaded, false, 'no reload for an older version');
+  up.off('framenavigated', seen);
+  liveVersion = '2999.1.1-1';
   const nav = up.waitForEvent('framenavigated');
   await up.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await nav;
   await up.waitForSelector('.hero');
-  assert.equal(await up.evaluate(() => sessionStorage.getItem('planner.reloadedFor')), 'newer');
+  assert.equal(await up.evaluate(() => sessionStorage.getItem('planner.reloadedFor')), '2999.1.1-1');
   assert.deepEqual(errors, []);
   console.log('browser test passed');
   await b.close(); srv.close();

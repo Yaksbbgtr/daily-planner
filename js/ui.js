@@ -29,8 +29,10 @@ export function toast(msg, undo) {
 // Opens the sheet. Handlers in `on` are called with the form element.
 export function sheet(title, body, { on = {}, setup, save = 'Save', del, wide } = {}) {
   const d = $('#sheet');
-  if (d.open) d.close();
-  d.className = wide ? 'wide' : '';
+  // One sheet swapping for another (Quick add > More options) changes in place instead of rising a second time.
+  const swap = d.open;
+  if (swap) d.close();
+  d.className = (wide ? 'wide' : '') + (swap ? ' swap' : '');
   d.setAttribute('aria-label', title);
   d.innerHTML = `<form method="dialog" novalidate><span class="grabber" aria-hidden="true"></span><header>${on.save ? '<button type="button" class="txt" data-close>Cancel</button>' : '<span></span>'}<h2>${esc(title)}</h2>${on.save ? `<button class="primary" type="submit">${esc(save)}</button>` : '<button type="button" class="txt strong" data-close>Done</button>'}</header>
     <div class="body">${body}${del ? `<button type="button" class="danger wide" data-del>${esc(del)}</button>` : ''}</div></form>`;
@@ -38,8 +40,11 @@ export function sheet(title, body, { on = {}, setup, save = 'Save', del, wide } 
   form.onsubmit = (e) => { e.preventDefault(); if (on.save && on.save(form) !== false) d.close(); };
   d.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => d.close(); });
   if (del) $('[data-del]', d).onclick = () => { d.close(); on.del(); };
-  // Close on a press that starts on the backdrop, not a drag that merely ends there.
-  d.onpointerdown = (e) => { if (e.target === d) d.close(); };
+  // Close on a tap on the backdrop: it must start there (not a drag that merely ends there), and it closes on the
+  // click, not the press, so the same tap does not also land on whatever is under the sheet.
+  let fromBackdrop = false;
+  d.onpointerdown = (e) => { fromBackdrop = e.target === d; };
+  d.onclick = (e) => { if (fromBackdrop && e.target === d) { e.preventDefault(); d.close(); } fromBackdrop = false; };
   setup?.(form, d);
   d.showModal();
   (form.querySelector('[autofocus]') || form.querySelector('[data-close]')).focus();

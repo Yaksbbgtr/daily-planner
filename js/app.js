@@ -221,12 +221,13 @@ const ACT = {
           const title = f.title.value.trim();
           if (!title) { $('.err', f).textContent = 'Give the list a name.'; $('.err', f).hidden = false; return false; }
           const rec = l ? { ...l, title } : { id: store.uid(), k: 'list', made: Date.now(), title };
-          store.change(() => store.put(rec));
+          // A new list opens on its own page: the route change draws it, so no extra draw of the old page first.
+          store.change(() => store.put(rec), { quiet: !l });
           if (!l) location.hash = '#/lists/' + rec.id;
         },
         del: () => {
           const items = lists.itemsOf(l.id);
-          const undo = store.change(() => { items.forEach((x) => store.remove(x.id)); store.remove(l.id); });
+          const undo = store.change(() => { items.forEach((x) => store.remove(x.id)); store.remove(l.id); }, { quiet: true });
           location.hash = '#/lists';
           toast('List deleted', undo);
         },
@@ -239,7 +240,7 @@ const ACT = {
   clearChecked: (el) => toast('Checked items removed', store.change(() => lists.itemsOf(el.dataset.id).filter((x) => x.on).forEach((x) => store.remove(x.id)))),
   newNote: (el) => {
     const rec = { id: store.uid(), k: 'note', made: Date.now(), title: '', body: '', folder: el.dataset.folder || null };
-    store.change(() => store.put(rec));
+    store.change(() => store.put(rec), { quiet: true });
     location.hash = '#/notes/' + rec.id;
     setTimeout(() => $('#notetitle')?.focus(), 0);
   },
@@ -487,6 +488,12 @@ sync.watch((appleChanged) => {
 
 /* ---------- picking up a new version ---------- */
 const VERSION = document.querySelector('meta[name=app-version]')?.content;
+// Versions look like 2026.11.23-22: compared number by number, so -10 comes after -9.
+function newer(a, b) {
+  const x = String(a).split(/\D+/).map(Number), y = String(b || '').split(/\D+/).map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  return false;
+}
 async function checkUpdate() {
   if (!navigator.onLine) return;
   let live;
@@ -494,7 +501,8 @@ async function checkUpdate() {
     const html = await (await fetch('./?check=' + Date.now(), { cache: 'no-store' })).text();
     live = html.match(/name="app-version" content="([^"]+)"/)?.[1];
   } catch { return; }
-  if (!live || live === VERSION) return;
+  // Only ever move forward: a stale copy from the server (an old CDN edge) must not reload the app back and forth.
+  if (!live || !newer(live, VERSION)) return;
   // Reload by itself once per version, and never under someone typing.
   let tried = null;
   try { tried = sessionStorage.getItem('planner.reloadedFor'); } catch { /* blocked */ }
@@ -520,7 +528,8 @@ function tick() {
   if (document.visibilityState === 'hidden') return;
   const d = D.iso();
   if (d !== shownDay) { if (calendar.st.sel === shownDay) calendar.select(d); if (today.st.day === shownDay) today.st.day = d; shownDay = d; flush(); render(); }
-  else if (route[0] === 'today' && !busyTyping() && !$('#sheet').open) render();
+  // Not in the middle of a swipe either: redrawing would drop the row under the finger.
+  else if (route[0] === 'today' && !busyTyping() && !$('#sheet').open && !swipe) render();
 }
 setInterval(tick, 60000);
 setInterval(() => { if (document.visibilityState === 'visible') sync.syncNow(); }, 5 * 60000);
