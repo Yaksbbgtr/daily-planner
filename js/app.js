@@ -250,12 +250,35 @@ sync.watch((appleChanged) => {
   else renderNav();
 });
 
+/* ---------- picking up a new version ---------- */
+const VERSION = document.querySelector('meta[name=app-version]')?.content;
+async function checkUpdate() {
+  if (!navigator.onLine) return;
+  let live;
+  try {
+    const html = await (await fetch('./?check=' + Date.now(), { cache: 'no-store' })).text();
+    live = html.match(/name="app-version" content="([^"]+)"/)?.[1];
+  } catch { return; }
+  if (!live || live === VERSION) return;
+  // Reload by itself once per version, and never under someone typing.
+  let tried = null;
+  try { tried = sessionStorage.getItem('planner.reloadedFor'); } catch { /* blocked */ }
+  if (tried !== live && !busyTyping() && !$('#sheet').open) {
+    try { sessionStorage.setItem('planner.reloadedFor', live); } catch { /* blocked */ }
+    flush();
+    location.reload();
+  } else toast('A new version is ready', Object.assign(() => { flush(); location.reload(); }, { label: 'Reload' }));
+}
+setTimeout(checkUpdate, 1500);
+setInterval(() => { if (document.visibilityState === 'visible') checkUpdate(); }, 30 * 60000);
+
 addEventListener('hashchange', go);
 addEventListener('pagehide', () => flush());
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { flush(); return; }
   tick();
   sync.syncNow();
+  checkUpdate();
 });
 addEventListener('online', () => sync.syncNow());
 function tick() {

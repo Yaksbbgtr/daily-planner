@@ -172,6 +172,15 @@ const srv = http.createServer((q, r) => {
   const c = await b.newContext(); const off = await c.newPage(); await off.goto(url);
   await off.evaluate(() => navigator.serviceWorker.ready); await off.reload(); await off.waitForSelector('.hero');
   await c.setOffline(true); await off.reload(); await off.waitForSelector('.hero');
+  // an open app reloads itself when a newer version goes live
+  await off.close(); await c.close();
+  const up = await device({});
+  await up.route('**/?check=*', async (r) => { const res = await r.fetch(); r.fulfill({ response: res, body: (await res.text()).replace(/app-version" content="[^"]+"/, 'app-version" content="newer"') }); });
+  const nav = up.waitForEvent('framenavigated');
+  await up.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await nav;
+  await up.waitForSelector('.hero');
+  assert.equal(await up.evaluate(() => sessionStorage.getItem('planner.reloadedFor')), 'newer');
   assert.deepEqual(errors, []);
   console.log('browser test passed');
   await b.close(); srv.close();

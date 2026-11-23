@@ -18,7 +18,7 @@ export const icon = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true
 let toastTimer;
 export function toast(msg, undo) {
   const t = $('#toast');
-  t.innerHTML = `<span>${esc(msg)}</span>${undo ? '<button type="button">Undo</button>' : ''}`;
+  t.innerHTML = `<span>${esc(msg)}</span>${undo ? `<button type="button">${undo.label || 'Undo'}</button>` : ''}`;
   t.hidden = false;
   if (undo) $('button', t).onclick = () => { t.hidden = true; undo(); };
   clearTimeout(toastTimer);

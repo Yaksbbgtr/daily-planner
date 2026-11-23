@@ -1,5 +1,5 @@
 // Network first so a push shows up on the next open; the cache covers being offline.
-const CACHE = 'planner-v1';
+const CACHE = 'planner-2026.11.22-3'; // match app-version in index.html
 const FILES = ['./', 'style.css', 'manifest.webmanifest', 'vendor/hebcal.js', 'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png',
   'js/app.js', 'js/dates.js', 'js/recur.js', 'js/quickadd.js', 'js/merge.js', 'js/store.js', 'js/jewish.js', 'js/sync.js', 'js/ui.js', 'js/agenda.js', 'js/editors.js',
   'js/views/today.js', 'js/views/calendar.js', 'js/views/tasks.js', 'js/views/lists.js', 'js/views/notes.js', 'js/views/settings.js'];
@@ -11,10 +11,11 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || u.origin !== location.origin || !u.pathname.startsWith(new URL(self.registration.scope).pathname)) return;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const net = fetch(e.request.url, { cache: 'no-cache' }).then((r) => { if (r.ok) cache.put(e.request.url.split('#')[0], r.clone()); return r; });
+    const net = fetch(e.request.url, { cache: 'no-cache' }).then((r) => { if (r.ok) cache.put(u.origin + u.pathname, r.clone()); return r; });
     net.catch(() => {});
     const saved = () => cache.match(e.request, { ignoreSearch: true });
-    try { return await Promise.race([net, new Promise((_, no) => setTimeout(no, 3000))]); }
+    // Wait for the network while online, even on a slow connection, so a fresh version is never hidden behind the cache.
+    try { return await Promise.race([net, new Promise((_, no) => setTimeout(no, navigator.onLine ? 12000 : 0))]); }
     catch { return (await saved()) || net; }
   })());
 });
