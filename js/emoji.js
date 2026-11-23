@@ -17,6 +17,6 @@ export const PICKS = ['✅', '📅', '⭐', '🔥', '💼', '📞', '✉️', '�
 
 export function guess(title, kind) {
   for (const [re, e] of RULES) if (re.test(title || '')) return e;
-  return kind === 'event' ? '📅' : kind === 'habit' ? '⭐' : '✅';
+  return kind === 'event' ? '📅' : kind === 'habit' ? '⭐' : kind === 'project' ? '🗂️' : '✅';
 }
 export const emojiOf = (rec) => rec.emoji || guess(rec.title, rec.k);

@@ -14,6 +14,7 @@ import * as notes from './views/notes.js';
 import * as settings from './views/settings.js';
 import * as rituals from './rituals.js';
 import * as focus from './focus.js';
+import * as checklist from './checklist.js';
 
 // The look, applied before anything draws. A copy on this device avoids a flash of the default.
 export function applyTheme(t) {
@@ -216,12 +217,43 @@ const ACT = {
   removeItem: (el) => toast('Item removed', store.change(() => store.remove(el.dataset.id))),
   uncheckAll: (el) => { store.change(() => lists.itemsOf(el.dataset.id).filter((x) => x.on).forEach((x) => store.put({ ...x, on: false }))); },
   clearChecked: (el) => toast('Checked items removed', store.change(() => lists.itemsOf(el.dataset.id).filter((x) => x.on).forEach((x) => store.remove(x.id)))),
-  newNote: () => {
-    const rec = { id: store.uid(), k: 'note', made: Date.now(), title: '', body: '' };
+  newNote: (el) => {
+    const rec = { id: store.uid(), k: 'note', made: Date.now(), title: '', body: '', folder: el.dataset.folder || null };
     store.change(() => store.put(rec));
     location.hash = '#/notes/' + rec.id;
     setTimeout(() => $('#notetitle')?.focus(), 0);
   },
+  noteFolder: (el) => { notes.st.folder = el.dataset.id || null; render(); },
+  editFolder: (el) => {
+    const fo = el.dataset.id ? store.get(el.dataset.id) : null;
+    sheet(fo ? 'Folder' : 'New folder', `<label>Name <input name="title" autofocus value="${esc(fo?.title)}" placeholder="Recipes"></label><p class="err" role="alert" hidden></p>`, {
+      del: fo ? 'Delete folder' : null,
+      on: {
+        save: (f) => {
+          const title = f.title.value.trim();
+          if (!title) { $('.err', f).textContent = 'Give the folder a name.'; $('.err', f).hidden = false; return false; }
+          const rec = fo ? { ...fo, title } : { id: store.uid(), k: 'folder', made: Date.now(), title };
+          notes.st.folder = rec.id;
+          store.change(() => store.put(rec));
+        },
+        // The notes stay; they just leave the folder.
+        del: () => {
+          const ns = notes.notesIn(fo.id);
+          notes.st.folder = null;
+          const undo = store.change(() => { ns.forEach((n) => store.put({ ...n, folder: null })); store.remove(fo.id); });
+          render();
+          toast(ns.length ? `Folder deleted. Its ${ns.length} notes are still in All.` : 'Folder deleted', undo);
+        },
+      },
+    });
+  },
+  editProject: (el) => E.editProject(el.dataset.id ? store.get(el.dataset.id) : null),
+  finishProject: (el) => { const p = store.get(el.dataset.id); if (p) toast('Project finished', store.change(() => store.put({ ...p, done: Date.now() }))); },
+  checkPart: (el) => { checklist.st.part = el.dataset.part; render(); },
+  toggleRoutine: (el) => checklist.toggle(el.dataset.id, el.dataset.day),
+  editRoutine: (el) => checklist.edit(el.dataset.id ? store.get(el.dataset.id) : null, el.dataset.part),
+  sampleRoutine: () => checklist.sample(),
+  toggleStep: (el) => E.toggleStep(el.dataset.id, el.dataset.step),
   pinNote: (el) => { flush(); const n = store.get(el.dataset.id); store.change(() => store.put({ ...n, pin: !n.pin })); },
   deleteNote: (el) => {
     flush();
@@ -261,9 +293,9 @@ const SUBMIT = {
   addTask: (f) => {
     const p = parse(f.t.value);
     if (!p.title) return;
-    const tags = tasks.st.tag && !p.tags.includes(tasks.st.tag) ? [...p.tags, tasks.st.tag] : p.tags;
+    const tags = !f.dataset.proj && tasks.st.tag && !p.tags.includes(tasks.st.tag) ? [...p.tags, tasks.st.tag] : p.tags;
     f.t.value = '';
-    store.change(() => store.put({ id: store.uid(), k: 'task', made: Date.now(), title: p.title, date: p.date, time: p.time, rule: p.rule, star: p.star, tags, notes: '', done: null }));
+    store.change(() => store.put({ id: store.uid(), k: 'task', made: Date.now(), title: p.title, date: p.date, time: p.time, rule: p.rule, star: p.star, tags, notes: '', done: null, proj: f.dataset.proj || null }));
   },
   addItem: (f) => {
     const title = f.t.value.trim();
@@ -279,6 +311,7 @@ const CHANGE = {
   ends: (el) => store.setSettings({ ends: el.value }),
   spelling: (el) => store.setSettings({ spelling: el.value }),
   cal: (el) => { const h = store.settings().hideCals.filter((c) => c !== el.value); store.setSettings({ hideCals: el.checked ? h : [...h, el.value] }); },
+  moveNote: (el) => { flush(); const n = store.get(el.dataset.id); if (n) store.change(() => store.put({ ...n, folder: el.value || null })); },
   openJournal: (el) => { if (D.isRealDate(el.value) && el.value <= D.iso()) location.hash = '#/notes/journal/' + el.value; },
   restore: async (el) => {
     const file = el.files[0];

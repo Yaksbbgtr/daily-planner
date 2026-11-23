@@ -411,3 +411,59 @@ li.task.swiping { z-index: 0; isolation: isolate; }
   .glancecard.progress { gap: 10px; }
   .glancecard.nudge span:last-child { font-size: 15px; }
 }
+
+/* ---------- daily checklist ---------- */
+.parts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 0 16px 14px; }
+.parts button { display: grid; justify-items: center; gap: 2px; padding: 12px 4px; border-radius: 22px; background: var(--card2); color: var(--soft); transition: background .25s, transform .15s; }
+.parts button:active { transform: scale(.96); }
+.parts .pe { font-size: 26px; line-height: 1.1; }
+.parts .pn { font-size: 13px; font-weight: 750; }
+.parts .pc { font-size: 12px; font-variant-numeric: tabular-nums; }
+.parts [aria-pressed=true] { background: var(--accent); color: var(--on-accent); }
+.parts .full:not([aria-pressed=true]) { background: color-mix(in srgb, var(--good) 22%, var(--card2)); color: var(--ink); }
+.cklist { list-style: none; margin: 0; padding: 0 16px 6px; display: grid; gap: 10px; }
+.cklist li { display: flex; align-items: center; gap: 12px; background: var(--card2); border-radius: 999px; padding: 6px 18px 6px 6px; }
+.cklist .ck .bubble { width: 52px; height: 52px; transition: background .25s, transform .2s; }
+.cklist li.on .ck .bubble { background: var(--good); color: var(--on-accent); font-weight: 900; box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 28%, transparent); }
+.cklist .ck:active .bubble { transform: scale(.9); }
+.cklist .ckname { flex: 1; text-align: start; font-size: 17px; font-weight: 650; min-height: 52px; color: var(--ink); }
+.cklist li.on .ckname { color: var(--soft); text-decoration: line-through; }
+.seg.wide { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; border-radius: 26px; }
+.seg.wide label { position: relative; }
+.seg.wide input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.seg.wide span { display: block; text-align: center; padding: 12px 8px; border-radius: 999px; font-weight: 700; color: var(--soft); }
+.seg.wide :checked + span { background: var(--accent); color: var(--on-accent); }
+.seg.wide :focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- projects ---------- */
+.tile.project { background: linear-gradient(160deg, color-mix(in srgb, var(--c) 26%, var(--card)), var(--card) 80%); gap: 6px; }
+.tile.project.finished { opacity: .6; }
+.ptop { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.ptop .bubble { width: 60px; height: 60px; font-size: 30px; }
+.pring { position: relative; display: grid; place-items: center; }
+.pring .ring { width: 56px; height: 56px; }
+.pring .ring .fill { stroke: var(--c); }
+.pring b { position: absolute; font-size: 12px; font-weight: 800; }
+.bubble.big { width: 56px; height: 56px; font-size: 28px; }
+.pbar { height: 14px; border-radius: 999px; background: var(--card2); overflow: hidden; margin-bottom: 18px; }
+.pbar i { display: block; height: 100%; border-radius: inherit; background: var(--c); transition: width .5s cubic-bezier(.3, 1.3, .5, 1); }
+.pnotes { color: var(--soft); margin: 0 4px 18px; white-space: pre-wrap; }
+li.steps { padding: 0 16px 12px 72px !important; border: 0 !important; }
+li.steps ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+li.steps button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: start; padding: 8px 14px 8px 8px; border-radius: 999px; background: var(--card2); color: var(--ink); font-size: 15px; min-height: 44px; }
+li.steps .mini { flex: none; width: 24px; height: 24px; border-radius: 50%; box-shadow: inset 0 0 0 2.5px var(--soft); display: grid; place-items: center; }
+li.steps li.on .mini { background: var(--good); box-shadow: none; }
+li.steps li.on .mini::after { content: '✓'; color: var(--on-accent); font-size: 14px; font-weight: 900; }
+li.steps li.on span:last-child { color: var(--soft); text-decoration: line-through; }
+
+/* ---------- note folders ---------- */
+.chips.folders { flex-wrap: nowrap; overflow-x: auto; margin: 14px -4px 18px; padding: 0 4px 4px; scrollbar-width: none; }
+.chips.folders .chip { flex: none; padding: 12px 18px; font-size: 16px; }
+.chips.folders .chip b { margin-left: 4px; opacity: .65; }
+.chip[aria-pressed=true] { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.chip.add { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); }
+.chip.add .i { width: 18px; height: 18px; }
+.chip.ghost { background: none; color: var(--soft); }
+.pillselect { width: auto; min-height: 40px; border-radius: 999px; padding: 6px 14px; font-weight: 650; }
+.rows > li.steps::before { display: none; }
+li.steps ul { flex: 1; }

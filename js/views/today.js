@@ -5,7 +5,8 @@ import * as J from '../jewish.js';
 import { eventsOn, tasksDue, taskSort } from '../agenda.js';
 import { taskRow, streak, hid } from '../editors.js';
 import { emojiOf } from '../emoji.js';
-import { color, esc, icon } from '../ui.js';
+import { color, esc, icon, ring } from '../ui.js';
+import * as checklist from '../checklist.js';
 import { nextAfter, startsOn } from '../recur.js';
 
 export const st = { day: null };
@@ -34,10 +35,6 @@ function weekStrip(sel, today) {
     <button class="roundbtn small" data-act="dayMove" data-n="7" aria-label="Next week">${icon('right')}</button></div>`;
 }
 
-function ring(done, total) {
-  const r = 34, c = 2 * Math.PI * r, f = total ? done / total : 0;
-  return `<svg class="ring" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${r}" class="track"/><circle cx="42" cy="42" r="${r}" class="fill" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}"/></svg>`;
-}
 
 function glance(day, today, dueAll) {
   const done = dueAll.filter((t) => t.done).length, total = dueAll.length;
@@ -158,6 +155,7 @@ export function render(sub) {
     ${day === today ? countdowns(today) : ''}
     ${day === today && new Date().getHours() < 11 && !store.get('plan:' + today) ? `<button class="ritual" data-act="planDay"><span class="bubble">☀️</span><span><b>Plan your day</b><span class="meta">Pick what today is for</span></span></button>` : ''}
     ${day === today && new Date().getHours() >= 17 && !store.get('wrap:' + today) ? `<button class="ritual" data-act="wrapDay"><span class="bubble">🌙</span><span><b>Wrap up the day</b><span class="meta">See what you did and move the rest</span></span></button>` : ''}
+    ${checklist.card(day, today)}
     ${late.length ? `<section class="card tasks late-card"><header><h2 class="late">Overdue</h2><button class="plain" data-act="rollOver">Move all to today</button></header><ul class="rows">${late.map((t) => taskRow(t)).join('')}</ul></section>` : ''}
     <div class="cols"><div>${timeline(day, today)}</div><div>
       ${habits(day, today)}

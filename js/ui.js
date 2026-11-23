@@ -55,3 +55,9 @@ export function download(name, text, type) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 30000);
 }
+
+// A round progress ring, filled by how much is done.
+export function ring(done, total) {
+  const r = 34, c = 2 * Math.PI * r, f = total ? done / total : 0;
+  return `<svg class="ring" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${r}" class="track"/><circle cx="42" cy="42" r="${r}" class="fill" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}"/></svg>`;
+}

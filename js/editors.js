@@ -115,6 +115,45 @@ function summary({ kind, rec }) {
 }
 
 /* ---------- tasks ---------- */
+const projectField = (cur) => {
+  const ps = store.all('project').filter((p) => !p.done || p.id === cur).sort((a, b) => a.made - b.made);
+  return `<label>Project <select name="proj"><option value="">None</option>${ps.map((p) => `<option value="${esc(p.id)}" ${p.id === cur ? 'selected' : ''}>${emojiOf({ ...p, k: 'project' })} ${esc(p.title)}</option>`).join('')}</select></label>`;
+};
+export function toggleStep(id, step) {
+  const t = store.get(id);
+  if (!t?.checklist) return;
+  store.change(() => store.put({ ...t, checklist: t.checklist.map((x) => (x.id === step ? { ...x, on: !x.on } : x)) }));
+}
+
+/* ---------- projects ---------- */
+export function editProject(p) {
+  const isNew = !p;
+  p ||= { id: store.uid(), k: 'project', made: Date.now(), title: '', color: COLORS[3] };
+  sheet(isNew ? 'New project' : 'Project', `<label>Project <input name="title" ${isNew ? 'autofocus' : ''} value="${esc(p.title)}" placeholder="Pesach cleaning"></label>
+    ${iconField(p, 'project')}
+    <fieldset><legend>Color</legend>${colorField(p.color)}</fieldset>
+    <label>Due (optional) <input type="date" name="due" value="${esc(p.due || '')}"></label>
+    <label>Notes <textarea name="notes" rows="3">${esc(p.notes)}</textarea></label>
+    ${isNew ? '' : `<label class="check"><input type="checkbox" name="done" ${p.done ? 'checked' : ''}> Finished</label>`}${ERR}`, {
+    setup: (f) => wireIcon(f, 'project'),
+    del: isNew ? null : 'Delete project',
+    on: {
+      save: (f) => {
+        const title = f.title.value.trim();
+        if (!title) return fail(f, 'Give the project a name.');
+        store.change(() => store.put({ ...p, title, emoji: f.emoji.value || null, color: f.color.value, due: D.isRealDate(f.due.value) ? f.due.value : null, notes: f.notes.value.trim(), done: f.done?.checked ? p.done || Date.now() : null }));
+        if (isNew) location.hash = '#/tasks/projects/' + p.id;
+      },
+      // Its tasks are kept; they just stop belonging to a project.
+      del: () => {
+        const ts = store.all('task').filter((t) => t.proj === p.id);
+        const undo = store.change(() => { ts.forEach((t) => store.put({ ...t, proj: null })); store.remove(p.id); });
+        location.hash = '#/tasks/projects';
+        toast(ts.length ? `Project deleted. Its ${ts.length} tasks are still in Tasks.` : 'Project deleted', undo);
+      },
+    },
+  });
+}
 export function toggleTask(id) {
   const t = store.get(id);
   if (!t) return;
@@ -132,13 +171,14 @@ export function toggleTask(id) {
 export function editTask(t, { isNew } = {}) {
   const LEN = [['', 'No length'], [15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 hour'], [90, '1½ hours'], [120, '2 hours'], [180, '3 hours']];
   let subs = (t.checklist || []).map((x) => ({ ...x }));
-  const subRows = () => subs.map((x, i) => `<div class="subrow"><input type="checkbox" data-sub="${i}" ${x.on ? 'checked' : ''} aria-label="Done"><input type="text" data-subt="${i}" value="${esc(x.t)}" aria-label="Step ${i + 1}"><button type="button" class="icon faint" data-subdel="${i}" aria-label="Remove step">${icon('close')}</button></div>`).join('');
+  const subRows = () => subs.map((x, i) => `<div class="subrow"><input type="checkbox" data-sub="${i}" ${x.on ? 'checked' : ''} aria-label="Done"><input type="text" data-subt="${i}" value="${esc(x.t)}" aria-label="Subtask ${i + 1}"><button type="button" class="icon faint" data-subdel="${i}" aria-label="Remove subtask">${icon('close')}</button></div>`).join('');
   sheet(isNew ? 'New task' : 'Task', `<label>Task <input name="title" ${isNew ? 'autofocus' : ''} value="${esc(t.title)}"></label>
     ${iconField(t, 'task')}
     <div class="row2"><label>Day <input type="date" name="date" value="${esc(t.date || '')}"></label><label>Time <input type="time" name="time" value="${esc(t.time || '')}"></label></div>
     <label>How long <select name="dur">${LEN.map(([v, n]) => `<option value="${v}" ${String(t.dur || '') === String(v) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     ${repeatFields(t.rule)}
-    <fieldset><legend>Steps</legend><div class="sublist" data-subs>${subRows()}</div><div class="inline" style="margin:8px 0 0"><input data-newsub placeholder="Add a step" aria-label="Add a step"><button type="button" class="plain" data-addsub>Add</button></div></fieldset>
+    ${projectField(t.proj)}
+    <fieldset><legend>Subtasks</legend><div class="sublist" data-subs>${subRows()}</div><div class="inline" style="margin:8px 0 0"><input data-newsub placeholder="Add a subtask" aria-label="Add a subtask"><button type="button" class="plain" data-addsub>Add</button></div></fieldset>
     <fieldset><legend>Color</legend>${colorField(t.color)}</fieldset>
     <label>Tags <input name="tags" value="${esc((t.tags || []).join(' '))}" placeholder="home school" autocapitalize="off"></label>
     <label class="check"><input type="checkbox" name="star" ${t.star ? 'checked' : ''}> Star this task</label>
@@ -166,7 +206,7 @@ export function editTask(t, { isNew } = {}) {
         const date = f.date.value || (f.f.value || f.time.value ? D.iso() : null);
         const tags = [...new Set(f.tags.value.toLowerCase().match(/[\p{L}\p{N}_-]+/gu) || [])];
         const checklist = subs.map((x) => ({ ...x, t: x.t.trim() })).filter((x) => x.t);
-        store.change(() => store.put({ ...t, title, date, time: f.time.value || null, dur: +f.dur.value || null, rule: readRepeat(f, t.rule, date), star: f.star.checked, tags, notes: f.notes.value.trim(), emoji: f.emoji.value || null, color: f.color.value, checklist }));
+        store.change(() => store.put({ ...t, title, date, time: f.time.value || null, dur: +f.dur.value || null, rule: readRepeat(f, t.rule, date), star: f.star.checked, tags, notes: f.notes.value.trim(), emoji: f.emoji.value || null, color: f.color.value, checklist, proj: f.proj.value || null }));
       },
       del: () => toast('Task deleted', store.change(() => store.remove(t.id))),
     },
@@ -298,14 +338,19 @@ export function streak(h, today = D.iso()) {
 }
 
 /* ---------- shared rows ---------- */
-export function taskRow(t, { showDate = true } = {}) {
+export function taskRow(t, { showDate = true, subs = false, noProj = false } = {}) {
   const today = D.iso();
   const meta = [];
   if (showDate && t.date) meta.push(`<span class="${!t.done && t.date < today ? 'late' : ''}">${esc(D.friendly(t.date))}</span>`);
   if (t.time) meta.push(D.time(t.time) + (t.dur ? ` · ${t.dur} min` : ''));
   if (t.checklist?.length) meta.push(`☑︎ ${t.checklist.filter((x) => x.on).length}/${t.checklist.length}`);
   if (t.rule) meta.push(`${icon('repeat')}${esc(describe(t.rule))}`);
+  const p = !noProj && t.proj && store.get(t.proj);
+  if (p) meta.push(`${emojiOf({ ...p, k: 'project' })} ${esc(p.title)}`);
   meta.push(...(t.tags || []).map((x) => `#${esc(x)}`));
-  return `<li class="task ${t.done ? 'done' : ''}"><button class="tick" data-act="toggleTask" data-id="${esc(t.id)}" role="checkbox" aria-checked="${!!t.done}" aria-label="${esc(t.title)}"></button>
+  const row = `<li class="task ${t.done ? 'done' : ''}"><button class="tick" data-act="toggleTask" data-id="${esc(t.id)}" role="checkbox" aria-checked="${!!t.done}" aria-label="${esc(t.title)}"></button>
     <button class="text" data-act="editTask" data-id="${esc(t.id)}" style="--c:${color(t.color)}"><span class="bubble" aria-hidden="true">${emojiOf(t)}</span><span class="tx"><span class="t">${t.star ? '<span class="star" aria-label="Starred">★</span> ' : ''}${esc(t.title)}</span>${meta.length ? `<span class="meta">${meta.join('<i></i>')}</span>` : ''}</span></button></li>`;
+  // Subtasks right under their task, each with its own round tick.
+  if (!subs || t.done || !t.checklist?.length) return row;
+  return row + `<li class="steps"><ul>${t.checklist.map((x) => `<li class="${x.on ? 'on' : ''}"><button data-act="toggleStep" data-id="${esc(t.id)}" data-step="${esc(x.id)}" role="checkbox" aria-checked="${!!x.on}"><span class="mini" aria-hidden="true"></span><span dir="auto">${esc(x.t)}</span></button></li>`).join('')}</ul></li>`;
 }

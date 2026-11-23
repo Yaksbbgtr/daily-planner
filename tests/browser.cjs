@@ -137,6 +137,46 @@ const srv = http.createServer((q, r) => {
   await mac.waitForSelector('.note');
   assert.match(await mac.textContent('.note'), /Ideas.*First idea/s);
   await mac.fill('#notesearch', 'zzz'); assert.equal(await mac.locator('.note').count(), 0);
+  await mac.fill('#notesearch', '');
+  // note folders
+  await mac.click('.chip.add'); await mac.fill('#sheet [name=title]', 'Recipes'); await mac.click('#sheet .primary');
+  await mac.waitForFunction(() => /Recipes/.test(document.querySelector('.chips.folders [aria-pressed=true]')?.textContent));
+  assert.equal(await mac.locator('.note').count(), 0);
+  await mac.click('[data-act=newNote]'); await mac.fill('#notetitle', 'Kugel');
+  await mac.evaluate(() => { location.hash = '#/notes'; });
+  await mac.waitForSelector('.note');
+  assert.equal(await mac.locator('.note').count(), 1);
+  await mac.click('.chips.folders [data-id=""]');
+  assert.equal(await mac.locator('.note').count(), 2);
+  await mac.screenshot({ path: shots + '/folders.png' });
+  // projects with subtasks
+  await mac.evaluate(() => { location.hash = '#/tasks/projects'; });
+  await mac.click('[data-act=editProject]'); await mac.fill('#sheet [name=title]', 'Pesach cleaning'); await mac.click('#sheet .primary');
+  await mac.waitForSelector('[data-proj]');
+  for (const x of ['Kitchen', 'Car']) { await mac.fill('#newtask', x); await mac.press('#newtask', 'Enter'); }
+  await mac.locator('.task .text', { hasText: 'Kitchen' }).click();
+  for (const x of ['Oven', 'Fridge']) { await mac.fill('#sheet [data-newsub]', x); await mac.press('#sheet [data-newsub]', 'Enter'); }
+  await mac.click('#sheet .primary');
+  await mac.waitForSelector('li.steps');
+  await mac.locator('[data-act=toggleStep]').first().click();
+  assert.equal(await mac.locator('li.steps li.on').count(), 1);
+  await mac.locator('.task .tick').last().click();
+  assert.match(await mac.textContent('.bar .hint'), /1 of 2 done/);
+  await mac.screenshot({ path: shots + '/project.png' });
+  await mac.evaluate(() => { location.hash = '#/tasks/projects'; });
+  assert.match(await mac.textContent('.tile.project'), /1 left of 2/);
+  // daily checklist
+  await mac.evaluate(() => { location.hash = '#/today'; });
+  await mac.click('[data-act=sampleRoutine]');
+  await mac.waitForSelector('.parts');
+  await mac.click('.parts [data-part=morning]');
+  assert.equal(await mac.locator('.cklist li').count(), 5);
+  await mac.locator('.cklist .ck').first().click();
+  assert.equal(await mac.locator('.cklist li.on').count(), 1);
+  assert.match(await mac.textContent('.parts [data-part=morning]'), /1\/5/);
+  await mac.click('[data-act=editRoutine][data-part=morning]'); await mac.fill('#sheet [name=title]', 'Stretch'); await mac.click('#sheet .primary');
+  assert.equal(await mac.locator('.cklist li').count(), 6);
+  await mac.locator('.checklist').screenshot({ path: shots + '/checklist.png' });
   // sync: sign in, then a change on one device shows up on the other by itself
   await mac.evaluate(() => { location.hash = '#/settings'; });
   await mac.click('[data-act=signIn]');
