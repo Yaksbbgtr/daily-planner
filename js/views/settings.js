@@ -18,13 +18,15 @@ export function syncText() {
 }
 const ACCENTS = [['#ff8a5c', 'Coral'], ['#ff5a5f', 'Red'], ['#ff7eb6', 'Pink'], ['#b69cff', 'Lavender'], ['#7c5cff', 'Violet'], ['#0088ff', 'Blue'], ['#4cc9f0', 'Sky'], ['#2ec4b6', 'Teal'], ['#5fd3a5', 'Mint'], ['#d9b44a', 'Gold'], ['#ffffff', 'White'], ['#111111', 'Black']];
 const BGS = [['#000000', 'Black'], ['#121212', 'Charcoal'], ['#1c1c1e', 'Graphite'], ['#0f1724', 'Navy'], ['#0f1a14', 'Forest'], ['#1a1210', 'Espresso'], ['#f5f1eb', 'Cream'], ['#ffffff', 'White']];
+const INKS = [['#ffffff', 'White'], ['#f5f1eb', 'Ivory'], ['#d6d6d6', 'Silver'], ['#e8d9a8', 'Champagne'], ['#cfe3ff', 'Ice'], ['#111111', 'Black'], ['#3a3a3a', 'Graphite'], ['#2b3a55', 'Ink blue'], ['#4a2c2a', 'Brown']];
+const HLS = [['#fff176', 'Yellow'], ['#ffd54f', 'Amber'], ['#ffab91', 'Peach'], ['#f48fb1', 'Pink'], ['#ce93d8', 'Lilac'], ['#90caf9', 'Blue'], ['#80deea', 'Aqua'], ['#a5d6a7', 'Green'], ['#ffffff', 'White'], ['#555555', 'Grey']];
 // A row of round swatches, plus one that opens the system color picker for any color at all.
 const colorRow = (name, label, list, cur) => {
   const custom = cur && !list.some(([c]) => c === cur);
   return `<fieldset class="swatches"><legend>${label}</legend><div class="row">
     <label title="The look's own"><input type="radio" name="${name}" value="" data-change="${name}" ${cur ? '' : 'checked'} aria-label="The look's own ${label.toLowerCase()}"><span class="auto">Look</span></label>
     ${list.map(([c, n]) => `<label title="${n}"><input type="radio" name="${name}" value="${c}" data-change="${name}" ${cur === c ? 'checked' : ''} aria-label="${n}"><span style="background:${c}"></span></label>`).join('')}
-    <label class="pick" title="Any color"><input type="color" value="${esc(cur || (name === 'bg' ? '#000000' : '#ff8a5c'))}" data-change="${name}" aria-label="Pick any ${label.toLowerCase()}"><span ${custom ? `style="background:${esc(cur)}" class="on"` : ''}>${custom ? '' : '+'}</span></label>
+    <label class="pick" title="Any color"><input type="color" value="${esc(cur || ({ bg: '#000000', ink: '#ffffff', hl: '#fff176' }[name] || '#ff8a5c'))}" data-change="${name}" aria-label="Pick any ${label.toLowerCase()}"><span ${custom ? `style="background:${esc(cur)}" class="on"` : ''}>${custom ? '' : '+'}</span></label>
   </div></fieldset>`;
 };
 export function render() {
@@ -36,7 +38,10 @@ export function render() {
   <section class="card"><header><h2>Look</h2></header><div class="pad"><div class="themes" role="radiogroup" aria-label="Look">${[['dusk', 'Dusk', 'linear-gradient(135deg,#050505 50%,#ff8a5c 50%)'], ['daylight', 'Daylight', 'linear-gradient(135deg,#f5f1eb 50%,#ff6b3d 50%)'], ['gold', 'Gold', 'linear-gradient(135deg,#0a0a0a 50%,#d9b44a 50%)'], ['ocean', 'Ocean', 'linear-gradient(135deg,#13222e 50%,#4cc9f0 50%)']].map(([v, n, g]) => `<label><input type="radio" name="theme" value="${v}" data-change="theme" ${(document.documentElement.dataset.theme || 'dusk') === v ? 'checked' : ''}><span class="sw" style="background:${g}"></span>${n}</label>`).join('')}</div>
     ${colorRow('accent', 'Accent color', ACCENTS, s.accent)}
     ${colorRow('bg', 'Background', BGS, s.bg)}
-    ${s.accent || s.bg ? '<button class="plain" data-act="resetColors">Use the look’s own colors</button>' : ''}</div></section>
+    ${colorRow('ink', 'Text color', INKS, s.ink)}
+    ${colorRow('hl', 'Highlight color', HLS, s.hl)}
+    <p class="hint hlsample">Highlight is the color behind text you select. <mark>Like this.</mark></p>
+    ${s.accent || s.bg || s.ink || s.hl ? '<button class="plain" data-act="resetColors">Use the look’s own colors</button>' : ''}</div></section>
   <section class="card"><header><h2>Jewish calendar</h2></header><div class="pad">
     <label>Location <select data-change="city">${opt('', 'Not set', s.loc ? 'x' : '')}${custom ? opt('keep', esc(s.loc.name), 'keep') : ''}${CITIES.map((c) => opt(c, c, s.loc?.name)).join('')}</select></label>
     <div class="links"><button class="plain" data-act="locate">Use this device’s location</button></div>

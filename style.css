@@ -540,3 +540,8 @@ input.switch:focus-visible, .check input[type=checkbox]:focus-visible { outline:
 .steps-how { padding-left: 22px; display: grid; gap: 12px; margin-bottom: 14px; }
 .steps-how .primary { margin-top: 8px; }
 .mailbtn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+
+/* ---------- text and highlight colors (Settings > Look) ---------- */
+::selection { background: var(--hl, color-mix(in srgb, var(--accent) 40%, transparent)); color: var(--on-hl, inherit); }
+input, textarea, [contenteditable] { caret-color: var(--hl, var(--accent)); }
+mark { background: var(--hl, color-mix(in srgb, var(--accent) 40%, transparent)); color: var(--on-hl, inherit); border-radius: 4px; padding: 0 3px; }
