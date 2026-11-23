@@ -287,6 +287,14 @@ const ACT = {
       setup: (f) => { $('[data-copy]', f).onclick = async (e) => { try { await navigator.clipboard.writeText(key); e.target.textContent = 'Copied'; } catch { $('#mackey').select(); } }; },
     });
   },
+  // Throws away the saved copy of the app (not your data) and loads it fresh.
+  forceUpdate: async () => {
+    flush();
+    toast('Updating…');
+    try { for (const r of await navigator.serviceWorker?.getRegistrations?.() || []) await r.unregister(); } catch { /* none */ }
+    try { for (const k of await caches.keys()) if (k.startsWith('planner-')) await caches.delete(k); } catch { /* none */ }
+    location.replace(location.pathname + '?v=' + Date.now() + location.hash);
+  },
   backup: () => { flush(); download(`daily-planner-backup-${D.iso()}.json`, JSON.stringify({ app: 'daily-planner', v: 1, made: new Date().toISOString(), recs: store.everything() }), 'application/json'); },
 };
 const SUBMIT = {
