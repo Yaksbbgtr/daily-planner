@@ -54,7 +54,8 @@ function wireIcon(form, kind) {
   form.addEventListener('change', upd);
   form.title.addEventListener('input', upd);
 }
-const colorField = (cur) => `<div class="colors" role="radiogroup" aria-label="Color">${COLORS.map((c, i) => `<label><input type="radio" name="color" value="${c}" ${(cur || COLORS[0]) === c ? 'checked' : ''} aria-label="Color ${i + 1}"><span style="background:${c}"></span></label>`).join('')}</div>`;
+// A color picked elsewhere (like a class's calendar color) stays as its own swatch, so saving keeps it.
+const colorField = (cur) => `<div class="colors" role="radiogroup" aria-label="Color">${[...COLORS, ...(/^#[0-9a-f]{6}$/i.test(cur || '') && !COLORS.includes(cur) ? [cur] : [])].map((c, i) => `<label><input type="radio" name="color" value="${c}" ${(cur || COLORS[0]) === c ? 'checked' : ''} aria-label="Color ${i + 1}"><span style="background:${c}"></span></label>`).join('')}</div>`;
 const fail = (form, msg) => { const e = $('.err', form); e.textContent = msg; e.hidden = false; return false; };
 const ERR = '<p class="err" role="alert" hidden></p>';
 
