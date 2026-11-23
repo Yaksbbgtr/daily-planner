@@ -69,7 +69,7 @@ function timeline(day, today) {
       if (e.end) lastEnd = Math.max(lastEnd ?? 0, mins(e.end)); else lastEnd = Math.max(lastEnd ?? 0, m + 30);
     } else {
       const t = it.t;
-      html += `<li class="slot ${t.done ? 'done' : ''}"><span class="time">${esc(D.time(t.time))}</span><div class="block task-block" style="--c:${color(t.color)}"><button class="bubble" data-act="editTask" data-id="${esc(t.id)}" aria-label="Edit ${esc(t.title)}">${emojiOf(t)}</button><button class="what" data-act="editTask" data-id="${esc(t.id)}"><span class="t">${esc(t.title)}</span><span class="meta">${t.dur ? `${D.time(t.time)} – ${D.time(D.addMinutes(t.time, t.dur))}` : D.time(t.time)}</span></button><button class="check" data-act="toggleTask" data-id="${esc(t.id)}" role="checkbox" aria-checked="${!!t.done}" aria-label="${esc(t.title)}"></button></div></li>`;
+      html += `<li class="slot ${t.done ? 'done' : ''}"><span class="time">${esc(D.time(t.time))}</span><div class="block task-block" style="--c:${color(t.color)}"><button class="bubble" data-act="toggleTask" data-id="${esc(t.id)}" aria-hidden="true" tabindex="-1">${emojiOf(t)}</button><button class="what" data-act="toggleTask" data-id="${esc(t.id)}" aria-hidden="true" tabindex="-1"><span class="t">${esc(t.title)}</span><span class="meta">${t.dur ? `${D.time(t.time)} – ${D.time(D.addMinutes(t.time, t.dur))}` : D.time(t.time)}</span></button><button class="editbtn" data-act="editTask" data-id="${esc(t.id)}" aria-label="Edit ${esc(t.title)}">${glyph('pencil')}</button><button class="check" data-act="toggleTask" data-id="${esc(t.id)}" role="checkbox" aria-checked="${!!t.done}" aria-label="${esc(t.title)}"></button></div></li>`;
       lastEnd = Math.max(lastEnd ?? 0, m + (t.dur || 30));
     }
   }

@@ -555,3 +555,13 @@ input.switch:focus-visible, .check input[type=checkbox]:focus-visible { outline:
 #nav a .i { width: 22px; height: 22px; }
 #nav .pill { top: 4px; bottom: 4px; }
 @media (max-width: 360px) { #nav a span { font-size: 8.5px; } }
+
+/* ---------- tap anywhere on the bar to tick it off; the pencil edits ---------- */
+.editbtn { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--soft); background: transparent; align-self: center; }
+.editbtn:active { background: var(--card2); }
+.editbtn .g { width: 18px; height: 18px; }
+.task .editbtn { order: 1; margin-right: -12px; }
+.cklist .ck { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; text-align: start; }
+.cklist li { padding-right: 6px; }
+.cklist .ck .ckname { flex: 1; min-width: 0; display: flex; align-items: center; }
+.timeline .task-block .editbtn { width: 40px; height: 40px; }

@@ -155,7 +155,7 @@ const srv = http.createServer((q, r) => {
   await mac.click('[data-act=editProject]'); await mac.fill('#sheet [name=title]', 'Pesach cleaning'); await mac.click('#sheet .primary');
   await mac.waitForSelector('[data-proj]');
   for (const x of ['Kitchen', 'Car']) { await mac.fill('#newtask', x); await mac.press('#newtask', 'Enter'); }
-  await mac.locator('.task .text', { hasText: 'Kitchen' }).click();
+  await mac.locator('.task', { hasText: 'Kitchen' }).locator('.editbtn').click();
   for (const x of ['Oven', 'Fridge']) { await mac.fill('#sheet [data-newsub]', x); await mac.press('#sheet [data-newsub]', 'Enter'); }
   await mac.click('#sheet .primary');
   await mac.waitForSelector('li.steps');
@@ -177,6 +177,11 @@ const srv = http.createServer((q, r) => {
   assert.match(await mac.textContent('.parts [data-part=morning]'), /1\/5/);
   await mac.click('[data-act=editRoutine][data-part=morning]'); await mac.fill('#sheet [name=title]', 'Stretch'); await mac.click('#sheet .primary');
   assert.equal(await mac.locator('.cklist li').count(), 6);
+  // tapping anywhere on the bar ticks it off; the pencil opens the editor
+  await mac.locator('.cklist li', { hasText: 'Stretch' }).locator('.ckname').click();
+  assert.equal(await mac.locator('.cklist li.on', { hasText: 'Stretch' }).count(), 1);
+  await mac.locator('.cklist li', { hasText: 'Stretch' }).locator('.editbtn').click();
+  await mac.waitForSelector('#sheet[open]'); assert.equal(await mac.inputValue('#sheet [name=title]'), 'Stretch'); await mac.click('#sheet [data-close]');
   await mac.locator('.checklist').screenshot({ path: shots + '/checklist.png' });
   // sync: sign in, then a change on one device shows up on the other by itself
   await mac.evaluate(() => { location.hash = '#/settings'; });
@@ -307,7 +312,7 @@ const srv = http.createServer((q, r) => {
   await mac.screenshot({ path: shots + '/wrap.png' });
   await mac.click('#sheet .primary');
   await mac.evaluate(() => { location.hash = '#/tasks'; });
-  await mac.locator('.task .text').first().click();
+  await mac.locator('.task:not(.done) .editbtn').first().click();
   await mac.click('#sheet [data-focus]');
   await mac.waitForSelector('#focus');
   await mac.click('#focus [data-len="5"]'); await mac.click('#focus [data-f=go]');

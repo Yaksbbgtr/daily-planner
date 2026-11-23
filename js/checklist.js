@@ -26,7 +26,8 @@ export function card(day, today) {
   const mine = all.filter((r) => r.part === part);
   const rows = mine.map((r) => {
     const on = !!store.get(cid(r.id, day));
-    return `<li class="${on ? 'on' : ''}"><button class="ck" data-act="toggleRoutine" data-id="${esc(r.id)}" data-day="${day}" role="checkbox" aria-checked="${on}" aria-label="${esc(r.title)}"><span class="bubble" aria-hidden="true">${on ? glyph('check') : emojiOf({ ...r, k: 'routine' })}</span></button><button class="ckname" data-act="editRoutine" data-id="${esc(r.id)}" dir="auto">${esc(r.title)}</button></li>`;
+    // The whole bar ticks it off; the pencil edits it.
+    return `<li class="${on ? 'on' : ''}"><button class="ck" data-act="toggleRoutine" data-id="${esc(r.id)}" data-day="${day}" role="checkbox" aria-checked="${on}"><span class="bubble" aria-hidden="true">${on ? glyph('check') : emojiOf({ ...r, k: 'routine' })}</span><span class="ckname" dir="auto">${esc(r.title)}</span></button><button class="editbtn" data-act="editRoutine" data-id="${esc(r.id)}" aria-label="Edit ${esc(r.title)}">${glyph('pencil')}</button></li>`;
   }).join('');
   const name = PARTS.find((p) => p[0] === part)[1].toLowerCase();
   return `<section class="card checklist"><header><h2>Daily checklist</h2><span class="hint">${done}/${all.length}</span></header>
@@ -69,5 +70,5 @@ export function sample() {
   const S = { morning: [['Modeh Ani', 'hand-heart'], ['Make the bed', 'bed'], ['Shacharis', 'hand-heart'], ['Breakfast', 'chef-hat'], ['Vitamins', 'pill']], afternoon: [['Mincha', 'hand-heart'], ['Lunch', 'utensils'], ['Drink water', 'droplet'], ['Clear the inbox', 'mail']], evening: [['Supper', 'utensils'], ['Maariv', 'hand-heart'], ['Tidy up', 'sparkles'], ['Learn', 'book-open']], night: [['Plan tomorrow', 'folder-kanban'], ['Phone away', 'smartphone'], ['Krias Shema', 'moon'], ['Lights out', 'bed']] };
   let n = 0;
   const undo = store.change(() => { for (const [part, l] of Object.entries(S)) for (const [title, emoji] of l) store.put({ id: store.uid(), k: 'routine', made: Date.now() + n, order: n++, title, part, emoji, days: [0, 1, 2, 3, 4, 5, 6] }); });
-  toast('Sample checklist added. Tap any item name to change it.', undo);
+  toast('Sample checklist added. Tap the pencil on any item to change it.', undo);
 }
