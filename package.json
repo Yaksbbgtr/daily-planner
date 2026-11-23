@@ -1,1 +1,1 @@
-{"private":true,"type":"module","scripts":{"test":"node --test tests/unit.test.js"}}
+{"private":true,"type":"module","scripts":{"test":"node --test tests/unit.test.js tests/db.test.js"},"devDependencies":{"@electric-sql/pglite":"^0.5.16"}}

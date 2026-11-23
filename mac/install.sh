@@ -10,10 +10,19 @@ log="$HOME/Library/Logs/daily-planner-calendar.log"
 launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
 if [ "${1:-}" = "--remove" ]; then
   rm -rf "$plist" "$app" "$HOME/Library/Application Support/Daily Planner"
-  echo "Removed. Events already uploaded stay in your gist until you delete planner-apple.json there."
+  security delete-generic-password -s "Daily Planner Mac key" >/dev/null 2>&1 || true
+  echo "Removed. To also turn off its key, make a new Mac key in the app."
   exit 0
 fi
+url=$(sed -n "s/.*url: '\([^']*\)'.*/\1/p" ../js/config.js | grep -v '<project>' | head -1)
+key=$(sed -n "s/.*key: '\([^']*\)'.*/\1/p" ../js/config.js | grep -v '<publishable' | head -1)
+if [ -z "$url" ] || [ -z "$key" ]; then echo "Sync is not set up in js/config.js yet."; exit 1; fi
+read -rsp "Paste the Mac key from Daily Planner > Settings > Apple Calendar: " mackey; echo
+if ! [[ "$mackey" =~ ^[0-9a-f]{64}$ ]]; then echo "That does not look like a Mac key."; exit 1; fi
+security add-generic-password -U -s "Daily Planner Mac key" -a "$USER" -w "$mackey"
 ./build.sh
+/usr/libexec/PlistBuddy -c "Add :PlannerURL string $url" -c "Add :PlannerKey string $key" "build/Daily Planner Calendar.app/Contents/Info.plist"
+codesign --force --sign - "build/Daily Planner Calendar.app"
 mkdir -p "$HOME/Applications" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
 rm -rf "$app" && cp -R "build/Daily Planner Calendar.app" "$app"
 # Upload again after a reinstall even if nothing changed.

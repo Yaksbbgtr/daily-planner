@@ -24,7 +24,7 @@ function readRoute() {
   return Object.hasOwn(VIEWS, r[0]) ? r : ['today'];
 }
 function renderNav() {
-  const bad = (sync.state.token && sync.state.error) || store.status.saveFailed;
+  const bad = (sync.state.user && sync.state.error) || store.status.saveFailed;
   document.body.classList.toggle('syncbad', !!bad);
   $('#nav').innerHTML = `<p class="brand" aria-hidden="true">Daily Planner</p>` + Object.keys(VIEWS).filter((v) => v !== 'settings').map((v) => `<a href="#/${v}" class="${v}" ${route[0] === v ? 'aria-current="page"' : ''}>${icon(v)}<span>${NAMES[v]}</span>${v === 'settings' && bad ? '<i class="alert" title="Sync problem"></i>' : ''}</a>`).join('');
 }
@@ -161,7 +161,20 @@ const ACT = {
       () => toast('Could not get your location. Pick a city instead.'), { timeout: 15000 });
   },
   syncNow: () => { flush(); sync.syncNow(); },
-  syncOff: () => { sync.disconnect(); toast('Sync is off on this device. Your data stays here.'); },
+  signIn: async () => {
+    flush();
+    try { await sync.signIn(); } catch (e) { const m = $('#syncmsg'); if (m) m.textContent = e.message; }
+  },
+  signOut: async () => { flush(); await sync.signOut(); toast('Signed out. Your data stays on this device.'); },
+  macKey: async (el) => {
+    el.disabled = true;
+    let key;
+    try { key = await sync.makeMacKey(); } catch (e) { toast(e.message); return; } finally { el.disabled = false; }
+    sheet('Mac key', `<p>On your Mac, open Terminal and run:</p><p><code>~/daily-planner/mac/install.sh</code></p><p>When it asks for the key, paste this. It is shown only once; making a new key turns the old one off.</p>
+      <textarea id="mackey" readonly rows="3" aria-label="Mac key">${esc(key)}</textarea><button type="button" class="primary" data-copy>Copy key</button>`, {
+      setup: (f) => { $('[data-copy]', f).onclick = async (e) => { try { await navigator.clipboard.writeText(key); e.target.textContent = 'Copied'; } catch { $('#mackey').select(); } }; },
+    });
+  },
   backup: () => { flush(); download(`daily-planner-backup-${D.iso()}.json`, JSON.stringify({ app: 'daily-planner', v: 1, made: new Date().toISOString(), recs: store.everything() }), 'application/json'); },
 };
 const SUBMIT = {
@@ -177,13 +190,6 @@ const SUBMIT = {
     if (!title) return;
     f.t.value = '';
     store.change(() => store.put({ id: store.uid(), k: 'item', list: f.dataset.list, made: Date.now(), title, on: false }));
-  },
-  syncOn: async (f) => {
-    const token = f.t.value.trim(), b = $('button', f);
-    if (!token) return;
-    b.disabled = true;
-    try { await sync.connect(token); f.t.blur(); render(); }
-    catch (e) { b.disabled = false; const m = $('#syncmsg'); if (m) m.textContent = e.message; }
   },
 };
 const CHANGE = {
@@ -235,7 +241,8 @@ document.addEventListener('keydown', (e) => {
   if (i >= 0) location.hash = '#/' + Object.keys(VIEWS)[i];
 });
 
-const busyTyping = () => main.contains(document.activeElement) && document.activeElement.matches('textarea, input');
+// Only a field with something typed in it holds back a redraw; the focused field survives redraws anyway.
+const busyTyping = () => main.contains(document.activeElement) && document.activeElement.matches('textarea, input') && document.activeElement.value !== '';
 store.onChange((why) => {
   if (why !== 'remote') sync.soon();
   if (why === 'quiet') return;
@@ -246,7 +253,7 @@ store.onChange((why) => {
 sync.watch((appleChanged) => {
   const line = $('#syncline');
   if (line) { line.textContent = settings.syncText(); line.className = sync.state.error ? 'late' : ''; }
-  if (appleChanged || (!sync.state.token && route[0] === 'settings')) { if (busyTyping()) stale = true; else render(); }
+  if (appleChanged || route[0] === 'settings') { if (busyTyping()) stale = true; else render(); }
   else renderNav();
 });
 
@@ -291,6 +298,6 @@ setInterval(tick, 60000);
 setInterval(() => { if (document.visibilityState === 'visible') sync.syncNow(); }, 5 * 60000);
 
 go();
-sync.syncNow();
+sync.init();
 navigator.storage?.persist?.().catch(() => {});
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

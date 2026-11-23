@@ -15,6 +15,8 @@ try {
 let recs = load();
 let txn = null;
 const subs = new Set();
+let writeHook = () => {};
+export const onWrite = (f) => { writeHook = f; };
 export const status = { saveFailed: false };
 
 function load() {
@@ -40,6 +42,7 @@ function write(rec) {
   const prev = recs[rec.id];
   if (txn && !txn.has(rec.id)) txn.set(rec.id, prev && !prev.del ? prev : null);
   recs[rec.id] = { ...rec, u: Math.max(Date.now(), (prev?.u || 0) + 1) };
+  writeHook(rec.id);
 }
 export function put(rec) { write(rec); if (!txn) { save(); emit('local'); } }
 export function remove(id) {
@@ -66,6 +69,8 @@ export function absorb(remote) {
 export function importBackup(data) {
   if (data?.app !== 'daily-planner' || !data.recs || !Object.values(data.recs).every(valid)) throw new Error('That file is not a Daily Planner backup.');
   absorb(data.recs);
+  // Send the restored records too; the cloud keeps whichever version is newest.
+  Object.keys(data.recs).forEach((id) => writeHook(id));
 }
 // Another tab saved: fold its changes in.
 if (typeof addEventListener === 'function') addEventListener('storage', (e) => {

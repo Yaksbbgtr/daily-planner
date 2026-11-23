@@ -11,17 +11,19 @@ A personal calendar, task list, habit tracker, notes and Jewish calendar. Static
 - Quick add understands `Dentist tomorrow 3-4pm`, `Trash every mon and thu #home !`, `Pay bill nov 30`
 - Keys: `N` adds, `1` to `6` switch sections, arrows move around the month
 
-## Data
+## Sync
 
-Everything is stored on the device. With sync on, it is also kept in a secret gist on your own GitHub account (unlisted, not encrypted). Nothing personal is in this repo.
+Sign in with Google on each device (Settings > Sync) and changes reach the others within seconds. Data lives in a Supabase database where row level security lets each account reach only its own rows (`supabase/schema.sql`). Until `js/config.js` names a project, everything stays on the device.
+
+Setting up a project: create it, run `supabase/schema.sql` in its SQL Editor, turn on the Google provider (with a Google OAuth client whose redirect URI is `https://<project>.supabase.co/auth/v1/callback`), set the Site URL to the app's address, and put the project URL and publishable key in `js/config.js`.
 
 ## Apple Calendar
 
-`mac/install.sh` builds a small helper that copies events (title, time, place, calendar name) from Apple Calendar into the same gist every 15 minutes while the Mac is awake. It never changes a calendar. It needs `gh` signed in with the `gist` scope, and sync connected in the app first. `mac/install.sh --remove` takes it off.
+`mac/install.sh` builds a small helper that sends events (title, time, place, calendar name) from Apple Calendar every 15 minutes while the Mac is awake, using a key made in Settings > Apple Calendar. It never changes a calendar. `mac/install.sh --remove` takes it off.
 
 ## Tests
 
-    npm test
+    npm install && npm test
     node tests/browser.cjs <path to playwright> <screenshot folder>
 
 ## License

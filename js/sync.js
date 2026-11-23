@@ -1,84 +1,93 @@
-// Keeps this device and a secret GitHub gist in step.
-import { merge, same, valid } from './merge.js';
+// Keeps this device in step with the cloud: sign in with Google, and every change reaches the other devices within seconds.
+import { CLOUD } from './config.js';
 import * as store from './store.js';
 
-const FILE = 'planner-sync.json';
-const APPLE = 'planner-apple.json';
 const { local } = store;
-
-export const state = { token: local.get('token'), gist: local.get('gist'), last: local.get('last', 0), busy: false, error: null };
-let again = false, timer = null, onStatus = () => {};
+export const ready = !!CLOUD;
+export const state = { user: null, busy: false, error: null, last: local.get('last', 0) };
+let sb = null, channel = null, timer = null, again = false, onStatus = () => {};
 export const watch = (f) => { onStatus = f; };
 
-async function api(path, opts = {}) {
-  let res;
-  try {
-    res = await fetch('https://api.github.com' + path, {
-      ...opts, cache: 'no-store',
-      headers: { Authorization: `Bearer ${state.token}`, Accept: 'application/vnd.github+json', ...(opts.body ? { 'Content-Type': 'application/json' } : {}) },
-    });
-  } catch { throw new Error('Offline. Changes are saved here and will sync later.'); }
-  if (res.ok) return res.json();
-  const err = new Error(
-    res.status === 401 ? 'GitHub did not accept the token. It may have expired.'
-      : res.status === 403 || res.status === 429 ? 'GitHub refused the request. Check that the token has the “gist” box ticked, or try again in a few minutes.'
-        : res.status === 404 ? 'The synced data could not be found with this token.' : `GitHub error ${res.status}.`);
-  err.status = res.status;
-  throw err;
+// Records changed here that the cloud has not confirmed yet. Kept on disk so nothing is lost if the app closes first.
+const dirty = new Set(local.get('dirty', []));
+const saveDirty = () => local.set('dirty', [...dirty]);
+store.onWrite((id) => { dirty.add(id); saveDirty(); });
+
+export function init() {
+  if (!CLOUD || !globalThis.supabase?.createClient) return;
+  sb = globalThis.supabase.createClient(CLOUD.url, CLOUD.key, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce', storageKey: 'planner.auth' },
+  });
+  sb.auth.onAuthStateChange((event, session) => {
+    const u = session?.user || null;
+    const changed = u?.id !== state.user?.id;
+    state.user = u;
+    // Supabase asks that its own calls not be made from inside this callback.
+    setTimeout(() => {
+      if (location.search.includes('code=')) history.replaceState(null, '', location.pathname + location.hash);
+      if (changed) {
+        if (u) {
+          // First time this account is used here: send everything already on the device.
+          if (local.get('owner') !== u.id) {
+            Object.keys(store.everything()).forEach((id) => dirty.add(id));
+            saveDirty();
+            local.set('owner', u.id);
+            local.set('sv', 0);
+          }
+          listen();
+          syncNow();
+        } else stopListening();
+      }
+      onStatus(false);
+    }, 0);
+  });
 }
 
-async function findOrCreate() {
-  for (let page = 1; page <= 10; page++) {
-    const list = await api(`/gists?per_page=100&page=${page}`);
-    const hit = list.find((g) => g.files?.[FILE] || g.files?.[APPLE]);
-    if (hit) return hit.id;
-    if (list.length < 100) break;
-  }
-  const g = await api('/gists', { method: 'POST', body: JSON.stringify({ description: 'Daily Planner sync data', public: false, files: { [FILE]: { content: JSON.stringify({ v: 1, recs: store.everything() }) } } }) });
-  return g.id;
+function listen() {
+  stopListening();
+  const f = { schema: 'public', filter: `user_id=eq.${state.user.id}` };
+  channel = sb.channel('planner-' + state.user.id)
+    .on('postgres_changes', { event: '*', table: 'records', ...f }, () => soon(300))
+    .on('postgres_changes', { event: '*', table: 'apple', ...f }, () => soon(300))
+    .subscribe();
 }
+function stopListening() { if (channel) { sb.removeChannel(channel); channel = null; } }
 
-async function readFile(f) {
-  if (!f) return null;
-  let text = f.content;
-  if (f.truncated) {
-    const res = await fetch(f.raw_url, { cache: 'no-store' });
-    if (!res.ok) throw new Error('Could not download the synced data.');
-    text = await res.text();
-  }
-  // Never treat unreadable data as empty: the next upload would erase it.
-  try { return JSON.parse(text); } catch { throw new Error('The synced data is unreadable, so nothing was uploaded.'); }
-}
-
-function takeApple(a) {
-  if (!a || a.v !== 1 || !Array.isArray(a.events)) return false;
-  if (a.updated === local.get('apple')?.updated) return false;
-  local.set('apple', a);
-  return true;
-}
+const check = ({ data, error }) => {
+  if (error) throw new Error(/fetch|network/i.test(error.message) ? 'Offline. Changes are saved here and will sync later.' : error.message);
+  return data;
+};
 
 export async function syncNow() {
-  if (!state.token) return;
+  if (!sb || !state.user) return;
   if (state.busy) { again = true; return; }
-  state.busy = true; state.error = null; onStatus();
+  state.busy = true; state.error = null; onStatus(false);
   let appleChanged = false;
   try {
-    if (!state.gist) { state.gist = await findOrCreate(); local.set('gist', state.gist); }
-    let g;
-    try { g = await api(`/gists/${state.gist}`); }
-    catch (e) {
-      if (e.status !== 404) throw e;
-      state.gist = await findOrCreate(); local.set('gist', state.gist);
-      g = await api(`/gists/${state.gist}`);
+    // Send what changed here.
+    const recs = store.everything();
+    const ids = [...dirty].filter((id) => recs[id]);
+    for (let i = 0; i < ids.length; i += 500) {
+      const rows = ids.slice(i, i + 500).map((id) => recs[id]);
+      check(await sb.rpc('push', { rows }));
+      for (const r of rows) if (store.everything()[r.id]?.u === r.u) dirty.delete(r.id);
     }
-    const remote = await readFile(g.files[FILE]);
-    if (remote && (remote.v !== 1 || !remote.recs || !Object.values(remote.recs).every(valid))) throw new Error('The synced data is from a different version of Daily Planner. Reload the app and try again.');
-    if (remote) store.absorb(remote.recs);
-    // A problem with the Apple file must not stop the rest from syncing.
-    try { appleChanged = takeApple(await readFile(g.files[APPLE])); } catch { /* keep the last good copy */ }
-    const mine = merge(store.everything(), {});
-    if (!remote || !same(mine, remote.recs)) {
-      await api(`/gists/${state.gist}`, { method: 'PATCH', body: JSON.stringify({ files: { [FILE]: { content: JSON.stringify({ v: 1, recs: mine }) } } }) });
+    [...dirty].filter((id) => !store.everything()[id]).forEach((id) => dirty.delete(id));
+    saveDirty();
+    // Then fetch what changed elsewhere since last time.
+    let sv = local.get('sv', 0);
+    for (;;) {
+      const rows = check(await sb.from('records').select('body,sv').gt('sv', sv).order('sv').limit(1000));
+      if (!rows.length) break;
+      store.absorb(Object.fromEntries(rows.map((r) => [r.body.id, r.body])));
+      sv = Math.max(sv, ...rows.map((r) => +r.sv));
+      local.set('sv', sv);
+      if (rows.length < 1000) break;
+    }
+    const a = check(await sb.from('apple').select('data,updated').maybeSingle());
+    if (a && a.updated !== local.get('apple')?.updated && Array.isArray(a.data?.events)) {
+      local.set('apple', { ...a.data, updated: a.updated });
+      appleChanged = true;
     }
     state.last = Date.now(); local.set('last', state.last);
   } catch (e) { state.error = e.message || 'Sync failed.'; }
@@ -87,22 +96,29 @@ export async function syncNow() {
   if (again) { again = false; syncNow(); }
 }
 
-export function soon(ms = 2500) {
-  if (!state.token) return;
+export function soon(ms = 1200) {
+  if (!sb || !state.user) return;
   clearTimeout(timer);
   timer = setTimeout(syncNow, ms);
 }
-export async function connect(token) {
-  state.token = token; state.gist = null;
-  try { state.gist = await findOrCreate(); }
-  catch (e) { state.token = null; throw e; }
-  local.set('token', token); local.set('gist', state.gist);
-  await syncNow();
+
+export async function signIn() {
+  if (!sb) return;
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'select_account' } } });
+  if (error) throw new Error(error.message);
 }
-export function disconnect() {
+export async function signOut() {
+  if (!sb) return;
   clearTimeout(timer);
-  Object.assign(state, { token: null, gist: null, last: 0, error: null });
-  for (const k of ['token', 'gist', 'last']) local.set(k, null);
-  onStatus();
+  await sb.auth.signOut();
+}
+
+// A key for the Mac helper. Only its hash is stored, so the key is shown once.
+export async function makeMacKey() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const key = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key)))].map((b) => b.toString(16).padStart(2, '0')).join('');
+  check(await sb.from('feed_keys').upsert({ user_id: state.user.id, key_hash: hash }));
+  return key;
 }
 export const apple = () => local.get('apple');

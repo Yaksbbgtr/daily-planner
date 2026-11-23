@@ -1,36 +1,32 @@
-// Copies Apple Calendar events into Daily Planner's secret gist so the web app can show them.
-// Reads only: it never changes a calendar. Uses the `gh` command line tool to sign in.
+// Sends Apple Calendar events to Daily Planner so the app can show them on every device.
+// Reads only: it never changes a calendar.
 import EventKit
 import Foundation
 
 let args = CommandLine.arguments
 let marker = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Daily Planner/last.json")
-let fileName = "planner-apple.json"
 
 func stop(_ msg: String, _ code: Int32 = 1) -> Never {
     FileHandle.standardError.write(Data((msg + "\n").utf8))
     exit(code)
 }
 
-func gh(_ arguments: [String], input: Data? = nil) -> Data {
-    let candidates = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh"]
-    guard let path = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else { stop("The gh command line tool is not installed.") }
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: path)
-    p.arguments = arguments
-    let out = Pipe(), inp = Pipe()
+// Settings written into Info.plist by install.sh.
+let info = Bundle.main.infoDictionary ?? [:]
+guard let base = info["PlannerURL"] as? String, let apiKey = info["PlannerKey"] as? String, !base.isEmpty else { stop("Run install.sh again: the app was built without the sync settings.") }
+
+func macKey() -> String {
+    let p = Process(), out = Pipe()
+    p.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+    p.arguments = ["find-generic-password", "-s", "Daily Planner Mac key", "-w"]
     p.standardOutput = out
-    p.standardInput = inp
-    do { try p.run() } catch { stop("Could not run gh: \(error)") }
-    // Write from another thread: a large body would otherwise block against a full output pipe.
-    DispatchQueue.global().async {
-        if let input { try? inp.fileHandleForWriting.write(contentsOf: input) }
-        try? inp.fileHandleForWriting.close()
-    }
+    p.standardError = Pipe()
+    try? p.run()
     let data = out.fileHandleForReading.readDataToEndOfFile()
     p.waitUntilExit()
-    if p.terminationStatus != 0 { stop("gh failed: \(String(decoding: data, as: UTF8.self))") }
-    return data
+    let key = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+    if p.terminationStatus != 0 || key.isEmpty { stop("No Mac key saved. Run install.sh again and paste the key from the app's settings.") }
+    return key
 }
 
 func hex(_ c: CGColor?) -> String {
@@ -80,14 +76,25 @@ if args.contains("--dry-run") {
 }
 if let last = try? Data(contentsOf: marker), last == body { print("No changes."); exit(0) }
 
-// The app makes the gist on its first sync; until then there is nowhere to put this.
-let ids = String(decoding: gh(["api", "--paginate", "/gists?per_page=100", "--jq", ".[] | select(.public == false) | select(.files[\"planner-sync.json\"]) | .id"]), as: UTF8.self).split(separator: "\n")
-guard let id = ids.first else { stop("Connect sync in Daily Planner's settings first, then run this again.", 3) }
-
-let payload: [String: Any] = ["v": 1, "updated": ISO8601DateFormatter().string(from: Date()), "events": events]
-let content = String(decoding: try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]), as: UTF8.self)
-let patch = try JSONSerialization.data(withJSONObject: ["files": [fileName: ["content": content]]])
-_ = gh(["api", "--method", "PATCH", "/gists/\(id)", "--input", "-", "--silent"], input: patch)
+let payload: [String: Any] = ["key": macKey(), "data": ["v": 1, "events": events]]
+var req = URLRequest(url: URL(string: base + "/rest/v1/rpc/put_apple")!)
+req.httpMethod = "POST"
+req.setValue(apiKey, forHTTPHeaderField: "apikey")
+req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+let done = DispatchSemaphore(value: 0)
+nonisolated(unsafe) var failure: String? = nil
+URLSession.shared.dataTask(with: req) { body, res, err in
+    let code = (res as? HTTPURLResponse)?.statusCode ?? 0
+    if let err { failure = "Could not reach the planner: \(err.localizedDescription)" }
+    else if !(200..<300).contains(code) {
+        let msg = String(decoding: body ?? Data(), as: UTF8.self)
+        failure = msg.contains("unknown key") ? "The Mac key was not accepted. Make a new one in the app's settings and run install.sh again." : "Upload failed (\(code)): \(msg)"
+    }
+    done.signal()
+}.resume()
+done.wait()
+if let failure { stop(failure) }
 try? FileManager.default.createDirectory(at: marker.deletingLastPathComponent(), withIntermediateDirectories: true)
 try? body.write(to: marker)
 print("Uploaded \(events.count) events.")

@@ -14,24 +14,34 @@ const srv = http.createServer((q, r) => {
   const url = `http://localhost:${srv.address().port}/`;
   const b = await chromium.launch();
   const errors = [];
-  const gists = {};
-  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
+  const { makeDb, user, as } = await import('./db.js');
+  const db = await makeDb();
+  const me = await user(db, 'me@example.com');
+  const pages = [];
+  // Runs what the fake client asks, the way the Supabase API would, then tells the other devices like Realtime does.
+  async function pg(u, op) {
+    try {
+      let rows;
+      if (op.kind === 'rpc') rows = (await as(db, u, `select ${op.fn === 'push' ? 'push($1::jsonb)' : 'x'}`, [JSON.stringify(op.args.rows)])).rows;
+      else if (op.kind === 'upsert') rows = (await as(db, u, 'insert into feed_keys (user_id, key_hash) values ($1, $2) on conflict (user_id) do update set key_hash = excluded.key_hash', [op.row.user_id, op.row.key_hash])).rows;
+      else if (op.table === 'records') rows = (await as(db, u, 'select body, sv from records where sv > $1 order by sv limit $2', [op.filters[0][2], op.limit])).rows;
+      else if (op.table === 'apple') { rows = (await as(db, u, 'select data, updated::text from apple')).rows; return { data: rows[0] || null, error: null }; }
+      if (op.kind !== 'select') setTimeout(live, 50);
+      return { data: rows, error: null };
+    } catch (e) { return { data: null, error: { message: e.message } }; }
+  }
+  const live = () => pages.forEach((p) => p.evaluate(() => window.__live?.()).catch(() => {}));
   async function device(opts) {
     const c = await b.newContext({ timezoneId: 'America/New_York', serviceWorkers: 'block', ...opts });
     const p = await c.newPage();
     await p.clock.install({ time: new Date('2026-11-27T13:20:00-05:00') });
     p.on('pageerror', (e) => errors.push(e.message));
-    p.on('console', (m) => m.type() === 'error' && !/401|Failed to load resource/.test(m.text()) && errors.push(m.text()));
-    await p.route('https://api.github.com/**', (r) => {
-      const q = r.request(), m = q.method(), id = q.url().match(/gists\/(\w+)/)?.[1];
-      const send = (status, body) => r.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(body) });
-      if (m === 'OPTIONS') return r.fulfill({ status: 204, headers: cors });
-      if (q.headers().authorization !== 'Bearer good') return send(401, {});
-      if (m === 'GET' && !id) return send(200, Object.values(gists));
-      if (m === 'POST') { const g = { id: 'g1', files: JSON.parse(q.postData()).files }; gists.g1 = g; return send(201, g); }
-      if (m === 'PATCH') Object.assign(gists[id].files, JSON.parse(q.postData()).files);
-      return gists[id] ? send(200, gists[id]) : send(404, {});
-    });
+    p.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && errors.push(m.text()));
+    await c.route('**/vendor/supabase.js', (r) => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(__dirname, 'fake-supabase.js'), 'utf8') }));
+    await c.route('**/js/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "export const CLOUD = { url: 'https://test.supabase.co', key: 'test' };" }));
+    await c.exposeBinding('__pg', (src, u, op) => pg(u, op));
+    await c.addInitScript((u) => localStorage.setItem('fake.account', JSON.stringify(u)), me);
+    pages.push(p);
     await p.goto(url);
     return p;
   }
@@ -122,25 +132,49 @@ const srv = http.createServer((q, r) => {
   await mac.waitForSelector('.note');
   assert.match(await mac.textContent('.note'), /Ideas.*First idea/s);
   await mac.fill('#notesearch', 'zzz'); assert.equal(await mac.locator('.note').count(), 0);
-  // sync
+  // sync: sign in, then a change on one device shows up on the other by itself
   await mac.evaluate(() => { location.hash = '#/settings'; });
-  await mac.fill('#token', 'bad'); await mac.click('[data-submit=syncOn] button');
-  await mac.waitForFunction(() => /did not accept/.test(document.querySelector('#syncmsg')?.textContent));
-  await mac.fill('#token', 'good'); await mac.click('[data-submit=syncOn] button');
-  await mac.waitForSelector('#syncline');
-  await mac.waitForFunction(() => /Synced/.test(document.querySelector('#syncline').textContent));
-  const noon = Math.floor(new Date('2026-11-27T12:00:00-05:00') / 1000);
-  gists.g1.files['planner-apple.json'] = { content: JSON.stringify({ v: 1, updated: '2026-11-27T18:00:00Z', events: [
-    { id: 'a1', t: 'Staff lunch', cal: 'Work', color: '#1badf8', s: noon, e: noon + 3600 }, { id: 'a2', t: 'Trip', cal: 'Family', color: 'red;x', day: '2026-11-26', endDay: '2026-11-28' }] }) };
+  await mac.click('[data-act=signIn]');
+  await mac.waitForFunction(() => /Synced/.test(document.querySelector('#syncline')?.textContent));
+  assert.match(await mac.textContent('main'), /me@example\.com/);
   const phone = await device({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await phone.evaluate(() => { location.hash = '#/settings'; });
-  await phone.fill('#token', 'good'); await phone.click('[data-submit=syncOn] button');
+  await phone.click('[data-act=signIn]');
+  await phone.waitForFunction(() => /Synced/.test(document.querySelector('#syncline')?.textContent));
+  await phone.evaluate(() => { location.hash = '#/today'; });
+  await phone.waitForSelector('.event');
+  assert.equal(await phone.inputValue('#journal'), 'A good day.');
+  assert.match(await phone.textContent('main'), /Dentist/);
+  await phone.evaluate(() => { location.hash = '#/tasks'; });
+  await phone.fill('#newtask', 'From phone'); await phone.press('#newtask', 'Enter');
+  await phone.clock.runFor(1500);
+  await mac.evaluate(() => { location.hash = '#/tasks'; });
+  await mac.clock.runFor(1500);
+  await mac.waitForFunction(() => /From phone/.test(document.querySelector('main').textContent));
+  // edits made offline go up when the connection is back, and the newest edit wins
+  await mac.context().setOffline(true);
+  await mac.fill('#newtask', 'Made offline'); await mac.press('#newtask', 'Enter');
+  await mac.clock.runFor(1500);
+  await mac.context().setOffline(false);
+  await mac.evaluate(() => dispatchEvent(new Event('online')));
+  await phone.waitForTimeout(300);
+  await phone.clock.runFor(1500);
+  await phone.waitForFunction(() => /Made offline/.test(document.querySelector('main').textContent));
+  // Apple Calendar through the Mac key
+  await phone.evaluate(() => { location.hash = '#/settings'; });
+  await phone.click('[data-act=macKey]');
+  const key = await phone.inputValue('#mackey');
+  assert.match(key, /^[0-9a-f]{64}$/);
+  await phone.click('#sheet [data-close]');
+  const noon = Math.floor(new Date('2026-11-27T12:00:00-05:00') / 1000);
+  await as(db, null, 'select put_apple($1, $2::jsonb)', [key, JSON.stringify({ v: 1, events: [
+    { id: 'a1', t: 'Staff lunch', cal: 'Work', color: '#1badf8', s: noon, e: noon + 3600 }, { id: 'a2', t: 'Trip', cal: 'Family', color: 'red;x', day: '2026-11-26', endDay: '2026-11-28' }] })]);
+  live(); await phone.waitForTimeout(200); await phone.clock.runFor(1000);
   await phone.waitForSelector('[data-change=cal]');
   await phone.screenshot({ path: shots + '/p-settings.png' });
   await phone.evaluate(() => { location.hash = '#/today'; });
   await phone.waitForSelector('.event');
   assert.match(await phone.textContent('main'), /Staff lunch/); assert.match(await phone.textContent('main'), /Trip/);
-  assert.equal(await phone.inputValue('#journal'), 'A good day.');
   for (const v of ['today', 'calendar', 'tasks', 'lists', 'notes', 'settings']) {
     await phone.evaluate((x) => { location.hash = '#/' + x; }, v);
     await phone.waitForTimeout(60);
@@ -150,21 +184,12 @@ const srv = http.createServer((q, r) => {
   }
   await phone.click('#add'); await phone.fill('#qa', 'Shiur motzei shabbos tomorrow 8:30pm every week'); await phone.waitForTimeout(400); await phone.screenshot({ path: shots + '/p-add.png' });
   await phone.click('#sheet [data-close]');
-  // a change on the phone reaches the Mac; both devices keep their edits
+  // signing out keeps the data here
+  await phone.evaluate(() => { location.hash = '#/settings'; });
+  await phone.click('[data-act=signOut]');
+  await phone.waitForSelector('[data-act=signIn]');
   await phone.evaluate(() => { location.hash = '#/tasks'; });
-  await phone.fill('#newtask', 'From phone'); await phone.press('#newtask', 'Enter'); await phone.clock.runFor(3000);
-  await phone.waitForTimeout(300);
-  await mac.evaluate(() => { location.hash = '#/tasks'; });
-  await mac.fill('#newtask', 'From mac'); await mac.press('#newtask', 'Enter');
-  await mac.clock.runFor(3000); await mac.waitForTimeout(400);
-  await mac.evaluate(() => document.activeElement.blur()); await mac.clock.runFor(50);
-  assert.match(await mac.textContent('main'), /From phone/);
-  assert.match(gists.g1.files['planner-sync.json'].content, /From mac/);
-  // unreadable cloud data is never overwritten
-  gists.g1.files['planner-sync.json'].content = '{broken';
-  await mac.evaluate(() => { location.hash = '#/settings'; }); await mac.click('[data-act=syncNow]');
-  await mac.waitForFunction(() => /unreadable/.test(document.querySelector('#syncline').textContent));
-  assert.equal(gists.g1.files['planner-sync.json'].content, '{broken');
+  assert.match(await phone.textContent('main'), /From phone/);
   // looks
   await mac.evaluate(() => { location.hash = '#/today'; }); await mac.waitForTimeout(50); await mac.click('#zmanim summary'); await mac.screenshot({ path: shots + '/today.png' });
   await mac.emulateMedia({ colorScheme: 'dark' }); await mac.screenshot({ path: shots + '/today-dark.png' });
