@@ -200,6 +200,14 @@ const srv = http.createServer((q, r) => {
   assert.ok(await pillOn(phone), 'highlight slid to Lists');
   await phone.click('#nav [data-tab=calendar]');
   await phone.waitForFunction(() => location.hash === '#/calendar');
+  // swiping a task row right finishes it
+  await phone.evaluate(() => { location.hash = '#/tasks'; }); await phone.waitForTimeout(100);
+  const row = await phone.evaluate(() => { const li = [...document.querySelectorAll('li.task')].find((x) => /Fix shelf/.test(x.textContent)); li.scrollIntoView({ block: 'center' }); const r = li.getBoundingClientRect(); return [r.left + 60, r.top + r.height / 2]; });
+  await phone.mouse.move(row[0], row[1]); await phone.mouse.down();
+  for (let i = 1; i <= 10; i++) await phone.mouse.move(row[0] + i * 14, row[1]);
+  await phone.mouse.up();
+  await phone.waitForFunction(() => /Task done|Done/.test(document.querySelector('#toast')?.textContent || ''));
+  assert.ok(await phone.evaluate(() => !document.querySelector('#sheet').open), 'a swipe is not a tap');
   // signing out keeps the data here
   await phone.evaluate(() => { location.hash = '#/settings'; });
   await phone.click('[data-act=signOut]');

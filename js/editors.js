@@ -63,7 +63,7 @@ export function quickAdd({ kind = null, date = null } = {}) {
   let picked = kind;
   sheet('Add', `<input id="qa" name="text" autofocus autocomplete="off" enterkeyhint="done" placeholder="Dentist tomorrow 3pm" aria-label="What to add">
     <div class="seg" role="group" aria-label="Type">${[['task', 'Task'], ['event', 'Event'], ['note', 'Note']].map(([k, t]) => `<button type="button" data-kind="${k}">${t}</button>`).join('')}</div>
-    <p class="preview" aria-live="polite"></p>${ERR}`, {
+    <div class="picked qa-preview"><span class="bubble" data-qabub aria-hidden="true">✅</span><p class="preview grow" aria-live="polite"></p></div>${ERR}`, {
     save: 'Add',
     on: { save: (form) => {
       const r = build(form.text.value, picked, date);
@@ -76,6 +76,7 @@ export function quickAdd({ kind = null, date = null } = {}) {
         const r = build(form.text.value, picked, date);
         form.querySelectorAll('[data-kind]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.kind === r.kind));
         $('.preview', form).textContent = summary(r);
+        $('[data-qabub]', form).textContent = r.kind === 'note' ? '📝' : guess(r.rec.title, r.kind);
         $('.err', form).hidden = true;
       };
       form.text.oninput = upd;

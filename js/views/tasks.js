@@ -18,7 +18,7 @@ export function render() {
     ['Today', open.filter((t) => t.date === today)],
     ['Next 7 days', open.filter((t) => t.date > today && t.date <= week)],
     ['Later', open.filter((t) => t.date > week)],
-    ['No date', open.filter((t) => !t.date)],
+    ['Inbox', open.filter((t) => !t.date)],
   ].filter(([, l]) => l.length);
   return `<header class="bar"><h1>Tasks</h1></header>
     <div class="narrow"><form class="inline" data-submit="addTask"><input id="newtask" name="t" autocomplete="off" enterkeyhint="done" placeholder="Call bank tomorrow #home" aria-label="Add a task"><button class="primary">Add</button></form>

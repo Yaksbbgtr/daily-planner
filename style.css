@@ -385,3 +385,14 @@ legend { font-size: 14px; font-weight: 700; color: var(--soft); margin-bottom: 8
 }
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; transition: none !important; } }
 .calhead { flex-wrap: nowrap; } .calhead h1 { font-size: clamp(26px, 7.5vw, 36px); }
+
+/* swipe on task rows: right finishes, left moves to tomorrow */
+li.task { touch-action: pan-y; }
+li.task.swiping { overflow: hidden; }
+li.task.swiping > * { transform: translateX(var(--sx, 0)); transition: none; }
+li.task > * { transition: transform .25s cubic-bezier(.3, 1.3, .5, 1); }
+li.task.swiping::after { content: "✓ Done"; position: absolute; inset: 0; display: flex; align-items: center; padding: 0 24px; font-weight: 800; color: #fff; background: var(--good); z-index: -1; border-radius: inherit; opacity: .35; }
+li.task.swiping[data-dir=later]::after { content: "Tomorrow →"; justify-content: flex-end; background: var(--accent2); }
+li.task.swiping.armed::after { opacity: 1; }
+li.task.swiping { z-index: 0; isolation: isolate; }
+.qa-preview .bubble { width: 48px; height: 48px; font-size: 24px; }

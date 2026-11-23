@@ -290,6 +290,49 @@ const CHANGE = {
 };
 const LIVE = { noteSearch: (el) => { notes.st.q = el.value.trim(); render(); } };
 
+// Swipe a task like in Things and TickTick: right to finish it, left to push it to tomorrow.
+let swipe = null, swipedRow = null;
+main.addEventListener('pointerdown', (e) => {
+  swipedRow = null;
+  const li = e.target.closest('li.task');
+  const id = li?.querySelector('[data-act=toggleTask]')?.dataset.id;
+  if (!id || e.button > 0) return;
+  swipe = { li, id, x: e.clientX, y: e.clientY, dx: 0, on: false, pid: e.pointerId };
+});
+main.addEventListener('pointermove', (e) => {
+  if (!swipe || e.pointerId !== swipe.pid) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+  if (!swipe.on) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { swipe = null; return; }
+    if (Math.abs(dx) < 12) return;
+    swipe.on = true;
+    swipe.li.setPointerCapture(e.pointerId);
+    swipe.li.classList.add('swiping');
+  }
+  swipe.dx = Math.max(-140, Math.min(140, dx));
+  swipe.li.style.setProperty('--sx', swipe.dx + 'px');
+  swipe.li.dataset.dir = swipe.dx > 0 ? 'done' : 'later';
+  swipe.li.classList.toggle('armed', Math.abs(swipe.dx) > 90);
+});
+function endSwipe(e) {
+  if (!swipe || e.pointerId !== swipe.pid) return;
+  const s = swipe;
+  swipe = null;
+  if (!s.on) return;
+  s.li.classList.remove('swiping', 'armed');
+  s.li.style.removeProperty('--sx');
+  swipedRow = s.li;
+  if (s.dx > 90) E.toggleTask(s.id);
+  else if (s.dx < -90) {
+    const t = store.get(s.id);
+    if (t && !t.done) { const d = D.addDays(D.iso(), 1); toast('Moved to tomorrow', store.change(() => store.put({ ...t, date: d }))); }
+  }
+}
+main.addEventListener('pointerup', endSwipe);
+main.addEventListener('pointercancel', endSwipe);
+// The click that ends a swipe is not a tap.
+main.addEventListener('click', (e) => { const r = swipedRow; swipedRow = null; if (r && r.contains(e.target)) { e.preventDefault(); e.stopPropagation(); } }, true);
+
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]');
   if (el && Object.hasOwn(ACT, el.dataset.act)) ACT[el.dataset.act](el);
