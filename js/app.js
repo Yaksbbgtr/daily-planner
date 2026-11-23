@@ -498,6 +498,16 @@ function tick() {
 setInterval(tick, 60000);
 setInterval(() => { if (document.visibilityState === 'visible') sync.syncNow(); }, 5 * 60000);
 
+// Starter note folders, added once. Fixed ids keep devices from making copies.
+if (!store.local.get('seed.folders')) {
+  const have = new Set(store.all('folder').map((f) => f.title.trim().toLowerCase()));
+  store.change(() => ['Career', 'Emotions', 'Environmental', 'Mind', 'Money', 'Physical Health', 'Relationships'].forEach((title, i) => {
+    const id = 'folder-' + title.toLowerCase().replace(/\W+/g, '-');
+    if (!store.everything()[id] && !have.has(title.toLowerCase())) store.put({ id, k: 'folder', made: Date.now() + i, title });
+  }), { quiet: true });
+  store.local.set('seed.folders', 1);
+}
+
 go();
 sync.init();
 focus.resume();
