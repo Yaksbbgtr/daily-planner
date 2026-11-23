@@ -47,7 +47,7 @@ const srv = http.createServer((q, r) => {
     return p;
   }
   const add = async (p, text, kind) => {
-    await p.click('#add'); await p.fill('#qa', text);
+    await p.evaluate(() => import('./js/editors.js').then((m) => m.quickAdd({}))); await p.waitForSelector('#qa'); await p.fill('#qa', text);
     if (kind) await p.click(`[data-kind=${kind}] >> nth=-1`);
     await p.click('#sheet .primary');
   };
@@ -238,7 +238,7 @@ const srv = http.createServer((q, r) => {
     assert.ok(o <= 0, `${v} overflows by ${o}`);
     await phone.screenshot({ path: `${shots}/p-${v}.png` });
   }
-  await phone.click('#add'); await phone.fill('#qa', 'Shiur motzei shabbos tomorrow 8:30pm every week'); await phone.waitForTimeout(400); await phone.screenshot({ path: shots + '/p-add.png' });
+  await phone.evaluate(() => import('./js/editors.js').then((m) => m.quickAdd({}))); await phone.waitForSelector('#qa'); await phone.fill('#qa', 'Shiur motzei shabbos tomorrow 8:30pm every week'); await phone.waitForTimeout(400); await phone.screenshot({ path: shots + '/p-add.png' });
   await phone.click('#sheet [data-close]');
   // tab bar: the highlight sits on the current tab, and dragging along the bar switches tabs
   await phone.evaluate(() => { location.hash = '#/today'; }); await phone.waitForTimeout(600);
@@ -246,7 +246,7 @@ const srv = http.createServer((q, r) => {
   assert.ok(await pillOn(phone), 'highlight on Today');
   await phone.screenshot({ path: shots + '/p-dock.png', clip: { x: 0, y: 700, width: 390, height: 144 } });
   const tabAt = (n) => phone.evaluate((n) => { const r = document.querySelectorAll('#nav a')[n].getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, n);
-  const [x0, y0] = await tabAt(0), [x3] = await tabAt(3);
+  const [x0, y0] = await tabAt(0), [x3] = await tabAt(4);
   await phone.mouse.move(x0, y0); await phone.mouse.down();
   for (let i = 1; i <= 8; i++) await phone.mouse.move(x0 + ((x3 - x0) * i) / 8, y0);
   await phone.mouse.up();
@@ -295,7 +295,7 @@ const srv = http.createServer((q, r) => {
   assert.equal(await phone.evaluate(() => getComputedStyle(document.querySelector('.btnsample .plain')).color), 'rgb(255, 255, 255)');
   assert.equal(await phone.evaluate(() => getComputedStyle(document.querySelector('.btnsample .plain')).backgroundColor), 'rgba(0, 0, 0, 0)');
   await phone.screenshot({ path: `${shots}/text-colors.png` });
-  await phone.click('[data-act=resetColors]');
+  await phone.$eval('[data-act=resetColors]', (el) => el.click()); await phone.waitForTimeout(400);
   assert.equal(await phone.evaluate(() => getComputedStyle(document.querySelector('[data-act=forceUpdate]')).color), 'rgb(255, 138, 92)');
   assert.equal(await phone.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(5, 5, 5)');
   // plan the day, wrap it up, and the focus timer

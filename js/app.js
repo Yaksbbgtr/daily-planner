@@ -56,9 +56,11 @@ function readRoute() {
   return Object.hasOwn(VIEWS, r[0]) ? r : ['today'];
 }
 // The tab bar is built once, so the highlight can slide from tab to tab instead of jumping.
-const TABS = Object.keys(VIEWS).filter((v) => v !== 'settings');
+// Projects lives inside Tasks (#/tasks/projects) but gets its own tab.
+const TABS = [['today', '#/today'], ['calendar', '#/calendar'], ['tasks', '#/tasks'], ['projects', '#/tasks/projects'], ['lists', '#/lists'], ['notes', '#/notes'], ['settings', '#/settings']];
 const nav = $('#nav');
-nav.innerHTML = `<span class="pill" aria-hidden="true"></span>` + TABS.map((v) => `<a href="#/${v}" data-tab="${v}" draggable="false">${icon(v)}<span>${NAMES[v]}</span></a>`).join('');
+nav.innerHTML = `<span class="pill" aria-hidden="true"></span>` + TABS.map(([v, href]) => `<a href="${href}" data-tab="${v}" draggable="false">${icon(v)}<span>${v === 'projects' ? 'Projects' : NAMES[v]}</span></a>`).join('');
+const tabNow = () => (route[0] === 'tasks' && route[1] === 'projects' ? 'projects' : route[0]);
 const pill = $('.pill', nav);
 function placePill(el, animate = true) {
   if (!el) { pill.style.opacity = '0'; return; }
@@ -73,7 +75,7 @@ function renderNav() {
   document.body.classList.toggle('syncbad', !!bad);
   let current = null;
   nav.querySelectorAll('a').forEach((a) => {
-    const on = a.dataset.tab === route[0];
+    const on = a.dataset.tab === tabNow();
     if (on) { a.setAttribute('aria-current', 'page'); current = a; } else a.removeAttribute('aria-current');
   });
   placePill(current, placedOnce);
@@ -116,7 +118,7 @@ function endDrag(e) {
   setTimeout(() => { delete nav.dataset.justDragged; }, 400);
   const hit = nearestTab(e.clientX);
   placePill(hit);
-  if (hit && hit.dataset.tab !== route[0]) location.hash = hit.getAttribute('href');
+  if (hit && hit.dataset.tab !== tabNow()) location.hash = hit.getAttribute('href');
 }
 nav.addEventListener('pointerup', endDrag);
 nav.addEventListener('pointercancel', endDrag);
@@ -461,7 +463,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (t.matches?.('input, textarea, select')) return;
-  if (e.key === 'n') { e.preventDefault(); $('#add').click(); }
+  if (e.key === 'n') { e.preventDefault(); ACT.quickAdd({ dataset: {} }); }
   const i = '123456'.indexOf(e.key);
   if (i >= 0) location.hash = '#/' + Object.keys(VIEWS)[i];
 });
