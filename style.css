@@ -405,3 +405,9 @@ li.task.swiping { z-index: 0; isolation: isolate; }
 .heat i.on { background: var(--good); }
 .heat i.off { background: none; box-shadow: inset 0 0 0 2px var(--card2); }
 .heat i.fut { opacity: .25; }
+@media (max-width: 480px) {
+  .ring { width: 60px; height: 60px; }
+  .glancecard { padding: 16px; min-height: 120px; }
+  .glancecard.progress { gap: 10px; }
+  .glancecard.nudge span:last-child { font-size: 15px; }
+}
