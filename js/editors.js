@@ -6,7 +6,7 @@ import { describe, nextAfter } from './recur.js';
 import { day as hebDay } from './jewish.js';
 import { $, esc, icon, sheet, closeSheet, toast, download } from './ui.js';
 
-export const COLORS = ['#007aff', '#34c759', '#ff3b30', '#af52de', '#ff9500', '#5ac8fa', '#8e8e93'];
+export const COLORS = ['#d4af37', '#e8e2d0', '#c8796b', '#8fa98a', '#6aa6c6', '#a38cc6', '#8a8a8a'];
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAYNAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
