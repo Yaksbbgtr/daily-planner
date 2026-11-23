@@ -254,7 +254,7 @@ export function toIcs(e, occ) {
 export function editHabit(h) {
   const isNew = !h;
   h ||= { id: store.uid(), k: 'habit', made: Date.now(), title: '', days: [0, 1, 2, 3, 4, 5, 6] };
-  sheet(isNew ? 'New habit' : 'Habit', `<label>Habit <input name="title" ${isNew ? 'autofocus' : ''} value="${esc(h.title)}" placeholder="Walk 20 minutes"></label>${iconField(h, 'habit')}<fieldset><legend>On these days</legend>${dayPicks(h.days)}</fieldset>${ERR}`, {
+  sheet(isNew ? 'New habit' : 'Habit', `<label>Habit <input name="title" ${isNew ? 'autofocus' : ''} value="${esc(h.title)}" placeholder="Walk 20 minutes"></label>${isNew ? '' : habitStats(h)}${iconField(h, 'habit')}<fieldset><legend>On these days</legend>${dayPicks(h.days)}</fieldset>${ERR}`, {
     setup: (f) => wireIcon(f, 'habit'),
     del: isNew ? null : 'Delete',
     on: {
@@ -269,6 +269,20 @@ export function editHabit(h) {
   });
 }
 export const hid = (id, day) => `h:${id}:${day}`;
+// The last five weeks as a grid of dots, with the longest run and the total (after TickTick's habit stats).
+function habitStats(h) {
+  const today = D.iso();
+  const start = D.addDays(D.startOfWeek(today), -28);
+  let total = 0, best = 0, run = 0;
+  const logs = store.all('habitlog').filter((x) => x.id.startsWith(`h:${h.id}:`)).map((x) => x.id.slice(-10)).sort();
+  total = logs.length;
+  if (logs.length) for (let d = logs[0]; d <= today; d = D.addDays(d, 1)) {
+    if (!h.days.includes(D.dow(d))) continue;
+    if (store.get(hid(h.id, d))) { run++; best = Math.max(best, run); } else if (d !== today) run = 0;
+  }
+  const cells = Array.from({ length: 35 }, (_, i) => D.addDays(start, i)).map((d) => `<i class="${d > today ? 'fut' : store.get(hid(h.id, d)) ? 'on' : h.days.includes(D.dow(d)) ? '' : 'off'}" title="${esc(D.shortDay(d))}"></i>`).join('');
+  return `<div class="hstats"><div class="nums"><div><b>${streak(h, today)}</b><span>now</span></div><div><b>${best}</b><span>best run</span></div><div><b>${total}</b><span>total</span></div></div><div class="heat" aria-label="Last five weeks">${cells}</div></div>`;
+}
 export function toggleHabit(id, day) {
   const key = hid(id, day);
   store.change(() => (store.get(key) ? store.remove(key) : store.put({ id: key, k: 'habitlog' })));

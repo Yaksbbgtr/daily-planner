@@ -93,6 +93,10 @@ const srv = http.createServer((q, r) => {
   for (const d of ['2026-11-25', '2026-11-26', '2026-11-27']) { await mac.click(`.daybub[data-day="${d}"]`); await mac.locator('.hab .habbtn').first().click(); }
   assert.match(await mac.textContent('.hab .meta'), /3 in a row/);
   await mac.screenshot({ path: shots + '/today-habits.png' });
+  await mac.locator('.hab .habname').first().click(); await mac.waitForSelector('.hstats');
+  assert.match(await mac.textContent('.hstats .nums'), /3\s*now\s*3\s*best run\s*3\s*total/);
+  await mac.screenshot({ path: shots + '/habit-stats.png' });
+  await mac.click('#sheet [data-close]');
   // journal saves while typing, survives reload
   await mac.fill('#journal', 'A good day.'); await mac.clock.runFor(700);
   await mac.reload(); await mac.waitForSelector('#journal');

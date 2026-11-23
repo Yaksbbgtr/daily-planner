@@ -396,3 +396,12 @@ li.task.swiping[data-dir=later]::after { content: "Tomorrow →"; justify-conten
 li.task.swiping.armed::after { opacity: 1; }
 li.task.swiping { z-index: 0; isolation: isolate; }
 .qa-preview .bubble { width: 48px; height: 48px; font-size: 24px; }
+.hstats { background: var(--card); border-radius: var(--r); padding: 18px; display: grid; gap: 16px; }
+.hstats .nums { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; }
+.hstats b { display: block; font-size: 30px; font-weight: 800; color: var(--good); }
+.hstats span { color: var(--soft); font-size: 13px; font-weight: 700; }
+.heat { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; justify-items: center; }
+.heat i { width: 100%; max-width: 34px; aspect-ratio: 1; border-radius: 50%; background: var(--card2); }
+.heat i.on { background: var(--good); }
+.heat i.off { background: none; box-shadow: inset 0 0 0 2px var(--card2); }
+.heat i.fut { opacity: .25; }
