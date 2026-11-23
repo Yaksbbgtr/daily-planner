@@ -16,7 +16,7 @@ const span = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} mi
 
 export function eventRows(day) {
   return eventsOn(day).map((e) => `<li><button class="event" data-act="openEvent" data-id="${esc(e.id)}" data-day="${day}" ${e.occ ? `data-occ="${e.occ}"` : ''} style="--c:${color(e.color)}">
-    <span class="bubble" aria-hidden="true">${emojiOf({ ...e, k: 'event' })}</span><span class="what"><span class="t">${esc(e.title)}</span><span class="meta">${[e.time ? D.time(e.time) + (e.end ? ' – ' + D.time(e.end) : '') : e.cont && e.end ? `until ${D.time(e.end)}` : 'All day', esc(e.loc || ''), e.apple ? esc(e.cal) : ''].filter(Boolean).join('<i></i>')}</span></span></button></li>`).join('');
+    <span class="bubble" aria-hidden="true">${emojiOf({ ...e, k: 'event' })}</span><span class="what"><span class="t">${esc(e.title)}</span><span class="meta">${[e.time ? D.time(e.time) + (e.end ? ' – ' + D.time(e.end) : '') : e.cont && e.end ? `until ${D.time(e.end)}` : 'All day', esc(e.loc || ''), e.apple ? esc(e.cal) : '', e.links?.length ? '🔗' : ''].filter(Boolean).join('<i></i>')}</span></span></button></li>`).join('');
 }
 export function jewishChips(items) {
   return items.map((x) => `<span class="chip ${x.kind}">${esc(x.text)}${x.at ? ` <b>${esc(J.formatTime(x.at))}</b>` : ''}</span>`).join('');
@@ -65,7 +65,7 @@ function timeline(day, today) {
     if (it.kind === 'zman') html += `<li class="zman ${it.holy ? 'holy' : ''}"><span class="time">${esc(J.formatTime(it.when))}</span><span class="dot">${glyph(it.emoji)}</span><span class="t">${esc(it.name)}</span></li>`;
     else if (it.kind === 'event') {
       const e = it.e;
-      html += `<li class="slot"><span class="time">${e.time ? esc(D.time(e.time)) : ''}</span><button class="block" data-act="openEvent" data-id="${esc(e.id)}" data-day="${day}" ${e.occ ? `data-occ="${e.occ}"` : ''} style="--c:${color(e.color)}"><span class="bubble">${emojiOf({ ...e, k: 'event' })}</span><span class="what"><span class="t">${esc(e.title)}</span><span class="meta">${[e.time && e.end ? `${D.time(e.time)} – ${D.time(e.end)}` : e.cont && e.end ? `until ${D.time(e.end)}` : '', esc(e.loc || ''), e.apple ? esc(e.cal) : ''].filter(Boolean).join('<i></i>')}</span></span></button></li>`;
+      html += `<li class="slot"><span class="time">${e.time ? esc(D.time(e.time)) : ''}</span><button class="block" data-act="openEvent" data-id="${esc(e.id)}" data-day="${day}" ${e.occ ? `data-occ="${e.occ}"` : ''} style="--c:${color(e.color)}"><span class="bubble">${emojiOf({ ...e, k: 'event' })}</span><span class="what"><span class="t">${esc(e.title)}</span><span class="meta">${[e.time && e.end ? `${D.time(e.time)} – ${D.time(e.end)}` : e.cont && e.end ? `until ${D.time(e.end)}` : '', esc(e.loc || ''), e.apple ? esc(e.cal) : '', e.links?.length ? '🔗' : ''].filter(Boolean).join('<i></i>')}</span></span></button></li>`;
       if (e.end) lastEnd = Math.max(lastEnd ?? 0, mins(e.end)); else lastEnd = Math.max(lastEnd ?? 0, m + 30);
     } else {
       const t = it.t;

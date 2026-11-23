@@ -271,8 +271,20 @@ export function editEvent(e, { isNew, occ } = {}) {
     },
   });
 }
+// A short name for a link: the meeting app if it is one, otherwise the site.
+export function linkName(url) {
+  let h;
+  try { const u = new URL(url); if (!/^https?:$/.test(u.protocol)) return null; h = u.hostname.replace(/^www\./, ''); } catch { return null; }
+  if (/(^|\.)zoom\.(us|com)$/.test(h)) return 'Join Zoom';
+  if (h === 'meet.google.com') return 'Join Google Meet';
+  if (/teams\.(microsoft|live)\.com$/.test(h)) return 'Join Teams';
+  if (/(^|\.)webex\.com$/.test(h)) return 'Join Webex';
+  if (h === 'facetime.apple.com') return 'Join FaceTime';
+  return 'Open ' + h;
+}
 export function showApple(e, day) {
-  sheet('Apple Calendar', `<h3>${esc(e.title)}</h3><p>${esc(D.friendly(day))}${e.time ? ', ' + D.time(e.time) + (e.end ? ' to ' + D.time(e.end) : '') : ', all day'}</p>${e.loc ? `<p>${esc(e.loc)}</p>` : ''}<p class="hint">From “${esc(e.cal)}”. Change it in Apple Calendar; Daily Planner shows the update after the Mac helper next runs.</p>`);
+  const links = (e.links || []).map((u) => [u, linkName(u)]).filter(([, n]) => n);
+  sheet('Apple Calendar', `<h3>${esc(e.title)}</h3><p>${esc(D.friendly(day))}${e.time ? ', ' + D.time(e.time) + (e.end ? ' to ' + D.time(e.end) : '') : ', all day'}</p>${e.loc && !links.some(([u]) => e.loc.trim() === u) ? `<p>${esc(e.loc)}</p>` : ''}${links.length ? `<div class="links">${links.map(([u, n]) => `<a class="plain" href="${esc(u)}" target="_blank" rel="noopener">${esc(n)}</a>`).join('')}</div>` : ''}<p class="hint">From “${esc(e.cal)}”. Change it in Apple Calendar; Daily Planner shows the update after the Mac helper next runs.</p>`);
 }
 
 export function toIcs(e, occ) {

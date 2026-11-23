@@ -84,6 +84,7 @@ main { max-width: 760px; margin: 0 auto; padding: calc(env(safe-area-inset-top) 
 .plain { color: var(--accent); font-weight: 700; padding: 10px 16px; min-height: 44px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--accent) 13%, transparent); }
 .danger { color: var(--late); font-weight: 700; padding: 10px 16px; min-height: 44px; border-radius: 999px; background: color-mix(in srgb, var(--late) 12%, transparent); }
 .links { display: flex; flex-wrap: wrap; gap: 10px; }
+a.plain { display: inline-flex; align-items: center; text-decoration: none; }
 .seg { display: inline-flex; background: var(--card); border-radius: 999px; padding: 4px; box-shadow: inset 0 0 0 1px var(--line); }
 .seg button { padding: 8px 18px; min-height: 40px; border-radius: 999px; font-size: 15px; font-weight: 700; color: var(--soft); }
 .seg [aria-pressed=true] { background: var(--accent); color: var(--on-accent); }

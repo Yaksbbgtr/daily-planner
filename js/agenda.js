@@ -17,7 +17,7 @@ function appleByDay() {
   const add = (d, e) => (byDay[d] ||= []).push(e);
   for (const e of a.events) {
     if (hide.includes(e.cal)) continue;
-    const base = { id: e.id, title: e.t || 'Untitled', cal: e.cal, color: e.color, loc: e.loc, apple: true };
+    const base = { id: e.id, title: e.t || 'Untitled', cal: e.cal, color: e.color, loc: e.loc, links: Array.isArray(e.links) ? e.links : [], apple: true };
     const from = e.day || iso(new Date(e.s * 1000));
     // An event ending exactly at midnight does not reach into the next day.
     const to = e.day ? (e.endDay || e.day) : iso(new Date(Math.max(e.s, e.e - 1) * 1000));

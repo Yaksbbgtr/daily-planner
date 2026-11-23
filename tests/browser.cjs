@@ -229,7 +229,7 @@ const srv = http.createServer((q, r) => {
   await phone.click('#sheet [data-close]');
   const noon = Math.floor(new Date('2026-11-27T12:00:00-05:00') / 1000);
   await as(db, null, 'select put_apple($1, $2::jsonb)', [key, JSON.stringify({ v: 1, events: [
-    { id: 'a1', t: 'Staff lunch', cal: 'Work', color: '#1badf8', s: noon, e: noon + 3600 }, { id: 'a2', t: 'Trip', cal: 'Family', color: 'red;x', day: '2026-11-26', endDay: '2026-11-28' }] })]);
+    { id: 'a1', t: 'Staff lunch', cal: 'Work', color: '#1badf8', s: noon, e: noon + 3600, loc: 'https://us02web.zoom.us/j/123', links: ['https://us02web.zoom.us/j/123', 'https://example.com/menu', 'javascript:alert(1)'] }, { id: 'a2', t: 'Trip', cal: 'Family', color: 'red;x', day: '2026-11-26', endDay: '2026-11-28' }] })]);
   live(); await phone.waitForTimeout(200); await phone.clock.runFor(1000);
   await phone.waitForSelector('[data-change=cal]');
   await phone.screenshot({ path: shots + '/p-settings.png' });
@@ -243,6 +243,11 @@ const srv = http.createServer((q, r) => {
     assert.ok(o <= 0, `${v} overflows by ${o}`);
     await phone.screenshot({ path: `${shots}/p-${v}.png` });
   }
+  await phone.evaluate(() => import('./js/editors.js').then((m) => m.showApple(m && { title: 'Staff lunch', cal: 'Work', time: '12:00', end: '13:00', loc: 'https://us02web.zoom.us/j/123', links: ['https://us02web.zoom.us/j/123', 'https://example.com/menu', 'javascript:alert(1)'] }, '2026-11-27')));
+  await phone.waitForSelector('#sheet a.plain');
+  assert.deepStrictEqual(await phone.$$eval('#sheet a.plain', (a) => a.map((x) => [x.textContent, x.getAttribute('href')])), [['Join Zoom', 'https://us02web.zoom.us/j/123'], ['Open example.com', 'https://example.com/menu']]);
+  await phone.waitForTimeout(400); await phone.screenshot({ path: shots + '/p-apple.png' });
+  await phone.click('#sheet [data-close]');
   await phone.evaluate(() => import('./js/editors.js').then((m) => m.quickAdd({}))); await phone.waitForSelector('#qa'); await phone.fill('#qa', 'Shiur motzei shabbos tomorrow 8:30pm every week'); await phone.waitForTimeout(400); await phone.screenshot({ path: shots + '/p-add.png' });
   await phone.click('#sheet [data-close]');
   // tab bar: the highlight sits on the current tab, and dragging along the bar switches tabs

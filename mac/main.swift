@@ -50,6 +50,23 @@ days.locale = Locale(identifier: "en_US_POSIX")
 days.calendar = Calendar(identifier: .gregorian)
 days.dateFormat = "yyyy-MM-dd"
 
+// Links from the event's URL field, then any found in its location and notes (Zoom, Meet, Teams...).
+let finder = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+func links(_ e: EKEvent) -> [String] {
+    var out: [String] = []
+    func add(_ u: URL?) {
+        guard let u, let scheme = u.scheme?.lowercased(), ["http", "https"].contains(scheme) else { return }
+        let s = u.absoluteString
+        if s.count <= 1000, !out.contains(s), out.count < 5 { out.append(s) }
+    }
+    add(e.url)
+    for text in [e.location, e.notes].compactMap({ $0 }) where !text.isEmpty {
+        let r = NSRange(text.startIndex..., in: text)
+        for m in finder?.matches(in: text, options: [], range: r) ?? [] { add(m.url) }
+    }
+    return out
+}
+
 var events: [[String: Any]] = []
 for e in store.events(matching: store.predicateForEvents(withStart: from, end: to, calendars: nil)) {
     guard let start = e.startDate, let end = e.endDate, e.status != .canceled else { continue }
@@ -58,6 +75,8 @@ for e in store.events(matching: store.predicateForEvents(withStart: from, end: t
         "t": e.title ?? "Untitled", "cal": e.calendar?.title ?? "Calendar", "color": hex(e.calendar?.cgColor),
     ]
     if let loc = e.location, !loc.isEmpty { row["loc"] = String(loc.prefix(200)) }
+    let found = links(e)
+    if !found.isEmpty { row["links"] = found }
     if e.isAllDay {
         row["day"] = days.string(from: start)
         row["endDay"] = days.string(from: max(start, end.addingTimeInterval(-1)))
