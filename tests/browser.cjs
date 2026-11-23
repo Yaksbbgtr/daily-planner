@@ -290,13 +290,13 @@ const srv = http.createServer((q, r) => {
   await phone.evaluate(() => { location.hash = '#/today'; }); await phone.waitForTimeout(80);
   await phone.screenshot({ path: `${shots}/own-colors.png` });
   await phone.evaluate(() => { location.hash = '#/settings'; });
-  // text and highlight colors
-  for (const sel of ['input[name=ink][value="#2b3a55"]', 'input[name=hl][value="#fff176"]']) await phone.$eval('.swatches ' + sel, (el) => el.click());
-  assert.equal(await phone.evaluate(() => getComputedStyle(document.body).color), 'rgb(43, 58, 85)');
-  assert.equal(await phone.evaluate(() => getComputedStyle(document.querySelector('.hlsample mark')).backgroundColor), 'rgb(255, 241, 118)');
+  // button text and highlight colors
+  for (const sel of ['input[name=ink][value="#ffffff"]', 'input[name=hl][value="none"]']) await phone.$eval('.swatches ' + sel, (el) => el.click());
+  assert.equal(await phone.evaluate(() => getComputedStyle(document.querySelector('.btnsample .plain')).color), 'rgb(255, 255, 255)');
+  assert.equal(await phone.evaluate(() => getComputedStyle(document.querySelector('.btnsample .plain')).backgroundColor), 'rgba(0, 0, 0, 0)');
   await phone.screenshot({ path: `${shots}/text-colors.png` });
   await phone.click('[data-act=resetColors]');
-  assert.notEqual(await phone.evaluate(() => getComputedStyle(document.body).color), 'rgb(43, 58, 85)');
+  assert.equal(await phone.evaluate(() => getComputedStyle(document.querySelector('[data-act=forceUpdate]')).color), 'rgb(255, 138, 92)');
   assert.equal(await phone.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(5, 5, 5)');
   // plan the day, wrap it up, and the focus timer
   await mac.evaluate(() => { location.hash = '#/today'; });

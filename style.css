@@ -541,7 +541,10 @@ input.switch:focus-visible, .check input[type=checkbox]:focus-visible { outline:
 .steps-how .primary { margin-top: 8px; }
 .mailbtn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
 
-/* ---------- text and highlight colors (Settings > Look) ---------- */
-::selection { background: var(--hl, color-mix(in srgb, var(--accent) 40%, transparent)); color: var(--on-hl, inherit); }
-input, textarea, [contenteditable] { caret-color: var(--hl, var(--accent)); }
-mark { background: var(--hl, color-mix(in srgb, var(--accent) 40%, transparent)); color: var(--on-hl, inherit); border-radius: 4px; padding: 0 3px; }
+/* ---------- button text and highlight colors (Settings > Look) ---------- */
+.plain { color: var(--btn-ink, var(--accent)); background: var(--btn-bg, color-mix(in srgb, var(--btn-ink, var(--accent)) 13%, transparent)); }
+#nav a[aria-current], #nav a.hover { color: var(--btn-ink, var(--accent)); }
+#nav .pill { background: var(--btn-bg, color-mix(in srgb, var(--btn-ink, var(--accent)) 18%, transparent)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--btn-ink, var(--accent)) 30%, transparent); }
+.btnsample .plain { display: inline-block; min-height: 0; padding: 4px 12px; margin: 0 2px; }
+.swatches .nohl { box-shadow: inset 0 0 0 2px var(--line); position: relative; }
+.swatches .nohl::after { content: ""; position: absolute; left: 20%; right: 20%; top: 50%; height: 2px; background: var(--soft); transform: rotate(-45deg); }

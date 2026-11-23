@@ -1,5 +1,5 @@
 // Network first so a push shows up on the next open; the cache covers being offline.
-const CACHE = 'planner-2026.11.23-16'; // match app-version in index.html
+const CACHE = 'planner-2026.11.23-17'; // match app-version in index.html
 const FILES = ['./', 'style.css', 'manifest.webmanifest', 'vendor/hebcal.js', 'vendor/supabase.js', 'js/config.js', 'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png',
   'js/app.js', 'js/dates.js', 'js/recur.js', 'js/quickadd.js', 'js/merge.js', 'js/store.js', 'js/jewish.js', 'js/sync.js', 'js/ui.js', 'js/agenda.js', 'js/editors.js',
   'js/views/today.js', 'js/emoji.js', 'js/glyphs.js', 'mail/script.js', 'widget/script.js', 'js/focus.js', 'js/checklist.js', 'js/rituals.js', 'js/views/calendar.js', 'js/views/tasks.js', 'js/views/lists.js', 'js/views/notes.js', 'js/views/settings.js'];

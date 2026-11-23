@@ -20,7 +20,7 @@ import * as checklist from './checklist.js';
 // On top of the chosen look, your own accent and background colors (Settings > Look).
 const HEX = /^#[0-9a-f]{6}$/i;
 const lum = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
-const COLORVARS = ['--accent', '--on-accent', '--bg', '--card', '--card2', '--ink', '--soft', '--faint', '--line', '--dock-bg', 'color-scheme', '--hl', '--on-hl'];
+const COLORVARS = ['--accent', '--on-accent', '--bg', '--card', '--card2', '--ink', '--soft', '--faint', '--line', '--dock-bg', 'color-scheme', '--btn-ink', '--btn-bg'];
 export function applyTheme(t, own = store.local.get('colors') || {}) {
   const theme = ['dusk', 'daylight', 'gold', 'ocean'].includes(t) ? t : 'dusk';
   const root = document.documentElement, st = root.style;
@@ -35,12 +35,10 @@ export function applyTheme(t, own = store.local.get('colors') || {}) {
     st.setProperty('--ink', ink); st.setProperty('--soft', mix(62)); st.setProperty('--faint', mix(40)); st.setProperty('--line', light ? 'rgb(0 0 0 / .08)' : 'rgb(255 255 255 / .08)');
     st.setProperty('--dock-bg', `color-mix(in srgb, ${mix(12)} 85%, transparent)`); st.setProperty('color-scheme', light ? 'light' : 'dark');
   }
-  // Text color: the main text, with softer shades of it for secondary text.
-  if (HEX.test(own.ink || '')) {
-    st.setProperty('--ink', own.ink); st.setProperty('--soft', `color-mix(in srgb, ${own.ink} 66%, var(--bg))`); st.setProperty('--faint', `color-mix(in srgb, ${own.ink} 42%, var(--bg))`);
-  }
-  // Highlight color: selected text and the typing cursor.
-  if (HEX.test(own.hl || '')) { st.setProperty('--hl', own.hl); st.setProperty('--on-hl', lum(own.hl) > 0.4 ? '#111111' : '#ffffff'); }
+  // Buttons like Add and Past days: the color of their words, and the soft round highlight behind them.
+  if (HEX.test(own.ink || '')) st.setProperty('--btn-ink', own.ink);
+  if (own.hl === 'none') st.setProperty('--btn-bg', 'transparent');
+  else if (HEX.test(own.hl || '')) st.setProperty('--btn-bg', `color-mix(in srgb, ${own.hl} 24%, transparent)`);
   const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', HEX.test(own.bg || '') ? own.bg : bg);
 }
