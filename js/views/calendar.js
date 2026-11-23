@@ -35,9 +35,9 @@ function hebMonths(ym) {
 export function render() {
   const today = D.iso();
   if (!st.sel) select(today);
-  const head = `<header class="bar"><div><h1>${st.mode === 'month' ? D.monthYear(st.ym + '-01') : 'Upcoming'}</h1>${st.mode === 'month' ? `<p class="hint" lang="he">${esc(hebMonths(st.ym))}</p>` : ''}</div>
-    <div class="tools"><div class="seg" role="group" aria-label="View"><button data-act="calMode" data-mode="month" aria-pressed="${st.mode === 'month'}">Month</button><button data-act="calMode" data-mode="list" aria-pressed="${st.mode === 'list'}">Upcoming</button></div>
-    ${st.mode === 'month' ? `<button class="icon" data-act="calMove" data-n="-1" aria-label="Previous month">${icon('left')}</button><button class="plain" data-act="calToday">Today</button><button class="icon" data-act="calMove" data-n="1" aria-label="Next month">${icon('right')}</button>` : ''}</div></header>`;
+  const head = `<header class="bar calhead"><div><h1>${st.mode === 'month' ? D.monthYear(st.ym + '-01') : 'Upcoming'}</h1>${st.mode === 'month' ? `<p class="hint" lang="he">${esc(hebMonths(st.ym))}</p>` : ''}</div>
+    ${st.mode === 'month' ? `<div class="tools"><button class="roundbtn" data-act="calMove" data-n="-1" aria-label="Previous month">${icon('left')}</button><button class="roundbtn" data-act="calMove" data-n="1" aria-label="Next month">${icon('right')}</button></div>` : ''}</header>
+    <div class="calbar"><div class="seg" role="group" aria-label="View"><button data-act="calMode" data-mode="month" aria-pressed="${st.mode === 'month'}">Month</button><button data-act="calMode" data-mode="list" aria-pressed="${st.mode === 'list'}">Upcoming</button></div>${st.mode === 'month' ? '<button class="plain" data-act="calToday">Today</button>' : ''}</div>`;
   if (st.mode === 'list') {
     let out = '';
     for (let i = 0; i < 45; i++) {

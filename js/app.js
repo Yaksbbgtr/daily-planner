@@ -12,6 +12,18 @@ import * as tasks from './views/tasks.js';
 import * as lists from './views/lists.js';
 import * as notes from './views/notes.js';
 import * as settings from './views/settings.js';
+import * as rituals from './rituals.js';
+import * as focus from './focus.js';
+
+// The look, applied before anything draws. A copy on this device avoids a flash of the default.
+export function applyTheme(t) {
+  const theme = ['dusk', 'daylight', 'gold', 'ocean'].includes(t) ? t : 'dusk';
+  document.documentElement.dataset.theme = theme;
+  store.local.set('theme', theme);
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', bg);
+}
+applyTheme(store.local.get('theme') || store.settings().theme);
 
 const VIEWS = { today, calendar, tasks, lists, notes, settings };
 const NAMES = { today: 'Today', calendar: 'Calendar', tasks: 'Tasks', lists: 'Lists', notes: 'Notes', settings: 'Settings' };
@@ -161,6 +173,11 @@ const ACT = {
   },
   editHabit: (el) => E.editHabit(el.dataset.id ? store.get(el.dataset.id) : null),
   toggleHabit: (el) => E.toggleHabit(el.dataset.id, el.dataset.day),
+  pickToday: (el) => { today.st.day = el.dataset.day; render(); },
+  dayMove: (el) => { today.st.day = D.addDays(today.st.day || D.iso(), +el.dataset.n); render(); },
+  planDay: () => rituals.planDay(),
+  wrapDay: () => rituals.wrapDay(),
+  rollOver: () => rituals.rollOver(),
   pickDay: (el) => { calendar.select(el.dataset.day); render(); $('.cell.sel')?.focus({ preventScroll: true }); },
   calMove: (el) => {
     const ym = D.addMonths(calendar.st.ym, +el.dataset.n), t = D.iso();
@@ -256,6 +273,7 @@ const SUBMIT = {
   },
 };
 const CHANGE = {
+  theme: (el) => { applyTheme(el.value); store.setSettings({ theme: el.value }); },
   city: (el) => { if (el.value !== 'keep') store.setSettings({ loc: el.value ? J.cityLoc(el.value) : null }); },
   candles: (el) => store.setSettings({ candles: +el.value }),
   ends: (el) => store.setSettings({ ends: el.value }),
@@ -309,6 +327,7 @@ const busyTyping = () => main.contains(document.activeElement) && document.activ
 store.onChange((why) => {
   if (why !== 'remote') sync.soon();
   if (why === 'quiet') return;
+  if (why === 'remote' && store.settings().theme && store.settings().theme !== document.documentElement.dataset.theme) applyTheme(store.settings().theme);
   // Never redraw under someone typing because another device changed something.
   if (why === 'remote' && busyTyping()) { stale = true; return; }
   render();
@@ -354,7 +373,7 @@ addEventListener('online', () => sync.syncNow());
 function tick() {
   if (document.visibilityState === 'hidden') return;
   const d = D.iso();
-  if (d !== shownDay) { if (calendar.st.sel === shownDay) calendar.select(d); shownDay = d; flush(); render(); }
+  if (d !== shownDay) { if (calendar.st.sel === shownDay) calendar.select(d); if (today.st.day === shownDay) today.st.day = d; shownDay = d; flush(); render(); }
   else if (route[0] === 'today' && !busyTyping() && !$('#sheet').open) render();
 }
 setInterval(tick, 60000);
@@ -362,5 +381,6 @@ setInterval(() => { if (document.visibilityState === 'visible') sync.syncNow(); 
 
 go();
 sync.init();
+focus.resume();
 navigator.storage?.persist?.().catch(() => {});
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

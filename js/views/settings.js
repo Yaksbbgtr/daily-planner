@@ -20,7 +20,8 @@ export function render() {
   const opt = (v, t, cur) => `<option value="${v}" ${String(cur) === String(v) ? 'selected' : ''}>${t}</option>`;
   const custom = s.loc && !CITIES.includes(s.loc.name);
   const cals = a ? [...new Map(a.events.map((e) => [e.cal, e.color])).entries()].sort() : [];
-  return `<header class="bar"><div class="crumb"><a class="icon" href="#/today" aria-label="Back to Today">${icon('left')}</a><h1>Settings</h1></div></header><div class="narrow">
+  return `<header class="bar"><div class="crumb"><a class="roundbtn" href="#/today" aria-label="Back to Today">${icon('left')}</a><h1>Settings</h1></div></header><div class="narrow">
+  <section class="card"><header><h2>Look</h2></header><div class="pad"><div class="themes" role="radiogroup" aria-label="Look">${[['dusk', 'Dusk', 'linear-gradient(135deg,#1d1d28 50%,#ff8a5c 50%)'], ['daylight', 'Daylight', 'linear-gradient(135deg,#f5f1eb 50%,#ff6b3d 50%)'], ['gold', 'Gold', 'linear-gradient(135deg,#0a0a0a 50%,#d9b44a 50%)'], ['ocean', 'Ocean', 'linear-gradient(135deg,#13222e 50%,#4cc9f0 50%)']].map(([v, n, g]) => `<label><input type="radio" name="theme" value="${v}" data-change="theme" ${(document.documentElement.dataset.theme || 'dusk') === v ? 'checked' : ''}><span class="sw" style="background:${g}"></span>${n}</label>`).join('')}</div></div></section>
   <section class="card"><header><h2>Jewish calendar</h2></header><div class="pad">
     <label>Location <select data-change="city">${opt('', 'Not set', s.loc ? 'x' : '')}${custom ? opt('keep', esc(s.loc.name), 'keep') : ''}${CITIES.map((c) => opt(c, c, s.loc?.name)).join('')}</select></label>
     <div class="links"><button class="plain" data-act="locate">Use this device’s location</button></div>

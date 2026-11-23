@@ -61,21 +61,21 @@ const srv = http.createServer((q, r) => {
   await mac.evaluate(() => { location.hash = '#/settings'; });
   await mac.selectOption('[data-change=city]', 'New York');
   await mac.evaluate(() => { location.hash = '#/today'; });
-  await mac.waitForSelector('.sky');
+  await mac.waitForSelector('.glancecard.sun');
   await add(mac, 'Dentist 3-4pm');
   await add(mac, 'Parent meeting sunday 8pm');
   await add(mac, 'Pay electric bill #home !');
   await add(mac, 'Buy challah today');
   await add(mac, 'Trash every mon and thu');
   await add(mac, '<img src=x onerror=alert(1)> today');
-  assert.equal(await mac.locator('.event').count(), 1);
+  assert.equal(await mac.locator('.timeline .block').count(), 1);
   assert.equal(await mac.locator('.today .task').count(), 2);
   assert.equal(await mac.locator('main img').count(), 0);
   // complete and undo
   await mac.click('.tick[aria-label="Buy challah today"], .tick[aria-label="Buy challah"]');
-  assert.equal(await mac.locator('.today .tasks > .rows .task').count(), 1);
+  assert.equal(await mac.locator('.anytime .task:not(.done)').count(), 1);
   await mac.click('#toast button');
-  assert.equal(await mac.locator('.today .tasks > .rows .task').count(), 2);
+  assert.equal(await mac.locator('.anytime .task:not(.done)').count(), 2);
   // repeating task moves on
   await mac.evaluate(() => { location.hash = '#/tasks'; });
   await mac.click('.tick[aria-label="Trash"]');
@@ -90,8 +90,9 @@ const srv = http.createServer((q, r) => {
   // habit
   await mac.evaluate(() => { location.hash = '#/today'; });
   for (const h of ['Walk 20 minutes', 'Read']) { await mac.click('[data-act=editHabit]:not([data-id])'); await mac.fill('#sheet [name=title]', h); await mac.click('#sheet .primary'); }
-  for (const i of [4, 5, 6]) await mac.locator('.habit').first().locator('.dots button').nth(i).click();
-  assert.match(await mac.textContent('.habit .meta'), /3 in a row/);
+  for (const d of ['2026-11-25', '2026-11-26', '2026-11-27']) { await mac.click(`.daybub[data-day="${d}"]`); await mac.locator('.hab .habbtn').first().click(); }
+  assert.match(await mac.textContent('.hab .meta'), /3 in a row/);
+  await mac.screenshot({ path: shots + '/today-habits.png' });
   // journal saves while typing, survives reload
   await mac.fill('#journal', 'A good day.'); await mac.clock.runFor(700);
   await mac.reload(); await mac.waitForSelector('#journal');
@@ -103,11 +104,11 @@ const srv = http.createServer((q, r) => {
   assert.equal(await night.inputValue('#journal'), '');
   assert.match(await night.evaluate(() => localStorage.getItem('planner.data')), /Friday text/);
   // events: edit, repeat by Hebrew date, validation
-  await mac.click('.event'); await mac.fill('#sheet [name=end]', '14:00'); await mac.click('#sheet .primary');
+  await mac.click('.timeline .block'); await mac.fill('#sheet [name=end]', '14:00'); await mac.click('#sheet .primary');
   assert.match(await mac.textContent('#sheet .err'), /not after/);
   await mac.fill('#sheet [name=end]', '16:30'); await mac.selectOption('#sheet [name=f]', 'weekly'); await mac.screenshot({ path: shots + '/event.png' });
   await mac.click('#sheet .primary');
-  assert.match(await mac.textContent('.event'), /to 4:30 PM/);
+  assert.match(await mac.textContent('.timeline .block'), /4:30 PM/);
   await mac.evaluate(() => { location.hash = '#/calendar'; });
   assert.equal(await mac.locator('.cell .pill', { hasText: 'Dentist' }).count() >= 1, true);
   await mac.click('[data-day="2026-12-04"]');
@@ -142,7 +143,7 @@ const srv = http.createServer((q, r) => {
   await phone.click('[data-act=signIn]');
   await phone.waitForFunction(() => /Synced/.test(document.querySelector('#syncline')?.textContent));
   await phone.evaluate(() => { location.hash = '#/today'; });
-  await phone.waitForSelector('.event');
+  await phone.waitForSelector('.timeline .block');
   assert.equal(await phone.inputValue('#journal'), 'A good day.');
   assert.match(await phone.textContent('main'), /Dentist/);
   await phone.evaluate(() => { location.hash = '#/tasks'; });
@@ -206,8 +207,38 @@ const srv = http.createServer((q, r) => {
   await phone.evaluate(() => { location.hash = '#/tasks'; });
   assert.match(await phone.textContent('main'), /From phone/);
   // looks
-  await mac.evaluate(() => { location.hash = '#/today'; }); await mac.waitForTimeout(50); await mac.click('#zmanim summary'); await mac.screenshot({ path: shots + '/today.png' });
-  await mac.emulateMedia({ colorScheme: 'dark' }); await mac.screenshot({ path: shots + '/today-dark.png' });
+  await mac.evaluate(() => { location.hash = '#/today'; }); await mac.waitForTimeout(50); await mac.screenshot({ path: shots + '/today.png' });
+  await mac.click('.glancecard.sun'); await mac.waitForSelector('.zlist'); await mac.screenshot({ path: shots + '/zmanim.png' });
+  // looks: each theme, on the phone
+  await phone.evaluate(() => { location.hash = '#/today'; }); await phone.waitForTimeout(100);
+  for (const t of ['dusk', 'daylight', 'gold', 'ocean']) {
+    await phone.evaluate((t) => { location.hash = '#/settings'; }, t);
+    await phone.click(`.themes input[value=${t}]`, { force: true });
+    assert.equal(await phone.evaluate(() => document.documentElement.dataset.theme), t);
+    await phone.evaluate(() => { location.hash = '#/today'; }); await phone.waitForTimeout(80);
+    await phone.screenshot({ path: `${shots}/theme-${t}.png` });
+  }
+  await phone.evaluate(() => { location.hash = '#/settings'; }); await phone.click('.themes input[value=dusk]', { force: true });
+  // plan the day, wrap it up, and the focus timer
+  await mac.evaluate(() => { location.hash = '#/today'; });
+  await mac.evaluate(() => import('./js/rituals.js').then((m) => m.planDay())); await mac.waitForSelector('#sheet[open]');
+  await mac.screenshot({ path: shots + '/plan.png' });
+  await mac.click('#sheet .primary');
+  await mac.evaluate(() => import('./js/rituals.js').then((m) => m.wrapDay())); await mac.waitForSelector('#sheet[open]');
+  await mac.screenshot({ path: shots + '/wrap.png' });
+  await mac.click('#sheet .primary');
+  await mac.evaluate(() => { location.hash = '#/tasks'; });
+  await mac.locator('.task .text').first().click();
+  await mac.click('#sheet [data-focus]');
+  await mac.waitForSelector('#focus');
+  await mac.click('#focus [data-len="5"]'); await mac.click('#focus [data-f=go]');
+  await mac.clock.runFor(60000);
+  assert.match(await mac.textContent('#focus .left'), /^4:0\d$/);
+  await mac.screenshot({ path: shots + '/focus.png' });
+  await mac.click('#focus [data-f=hide]');
+  await mac.waitForSelector('#focuspill');
+  await mac.clock.runFor(5 * 60000);
+  await mac.waitForFunction(() => /Time is up/.test(document.querySelector('#toast')?.textContent));
   // offline through the service worker
   const c = await b.newContext(); const off = await c.newPage(); await off.goto(url);
   await off.evaluate(() => navigator.serviceWorker.ready); await off.reload(); await off.waitForSelector('.hero');

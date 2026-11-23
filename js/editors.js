@@ -4,9 +4,10 @@ import * as store from './store.js';
 import { parse } from './quickadd.js';
 import { describe, nextAfter } from './recur.js';
 import { day as hebDay } from './jewish.js';
-import { $, esc, icon, sheet, closeSheet, toast, download } from './ui.js';
+import { $, esc, icon, sheet, closeSheet, toast, download, color } from './ui.js';
+import { PICKS, guess, emojiOf } from './emoji.js';
 
-export const COLORS = ['#d4af37', '#e8e2d0', '#c8796b', '#8fa98a', '#6aa6c6', '#a38cc6', '#8a8a8a'];
+export const COLORS = ['#ff8a5c', '#ffc145', '#5fd3a5', '#4cc9f0', '#b69cff', '#ff7eb6', '#9aa5b1'];
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAYNAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -37,6 +38,23 @@ function readRepeat(form, old, date) {
   const until = D.isRealDate(form.until.value) && form.until.value >= date ? form.until.value : null;
   return { f, n, ...(days.length ? { days } : {}), ...(until ? { until } : {}), ...(old?.ex?.length ? { ex: old.ex } : {}) };
 }
+// A round picture for the item: picked from a grid, or guessed from the title ("Auto").
+function iconField(rec, kind) {
+  const cur = rec.emoji || '';
+  return `<div class="picked"><span class="bubble" data-preview style="--c:${color(rec.color)}">${emojiOf({ ...rec, k: kind })}</span><div class="grow"><b>Icon</b><p class="hint">Pick one, or leave it on Auto</p></div></div>
+    <div class="emojis" role="radiogroup" aria-label="Icon"><label class="auto"><input type="radio" name="emoji" value="" ${cur ? '' : 'checked'} aria-label="Auto"><span>Auto</span></label>${PICKS.map((e) => `<label><input type="radio" name="emoji" value="${e}" ${cur === e ? 'checked' : ''} aria-label="${e}"><span>${e}</span></label>`).join('')}</div>`;
+}
+function wireIcon(form, kind) {
+  const upd = () => {
+    const b = form.querySelector('[data-preview]');
+    b.textContent = form.emoji.value || guess(form.title.value, kind);
+    const c = form.querySelector('[name=color]:checked');
+    if (c) b.style.setProperty('--c', c.value);
+  };
+  form.addEventListener('change', upd);
+  form.title.addEventListener('input', upd);
+}
+const colorField = (cur) => `<div class="colors" role="radiogroup" aria-label="Color">${COLORS.map((c, i) => `<label><input type="radio" name="color" value="${c}" ${(cur || COLORS[0]) === c ? 'checked' : ''} aria-label="Color ${i + 1}"><span style="background:${c}"></span></label>`).join('')}</div>`;
 const fail = (form, msg) => { const e = $('.err', form); e.textContent = msg; e.hidden = false; return false; };
 const ERR = '<p class="err" role="alert" hidden></p>';
 
@@ -111,13 +129,34 @@ export function toggleTask(id) {
   toast(next ? `Done. Next: ${D.friendly(next)}` : 'Task done', undo);
 }
 export function editTask(t, { isNew } = {}) {
+  const LEN = [['', 'No length'], [15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 hour'], [90, '1½ hours'], [120, '2 hours'], [180, '3 hours']];
+  let subs = (t.checklist || []).map((x) => ({ ...x }));
+  const subRows = () => subs.map((x, i) => `<div class="subrow"><input type="checkbox" data-sub="${i}" ${x.on ? 'checked' : ''} aria-label="Done"><input type="text" data-subt="${i}" value="${esc(x.t)}" aria-label="Step ${i + 1}"><button type="button" class="icon faint" data-subdel="${i}" aria-label="Remove step">${icon('close')}</button></div>`).join('');
   sheet(isNew ? 'New task' : 'Task', `<label>Task <input name="title" ${isNew ? 'autofocus' : ''} value="${esc(t.title)}"></label>
-    <div class="row2"><label>Due <input type="date" name="date" value="${esc(t.date || '')}"></label><label>Time <input type="time" name="time" value="${esc(t.time || '')}"></label></div>
+    ${iconField(t, 'task')}
+    <div class="row2"><label>Day <input type="date" name="date" value="${esc(t.date || '')}"></label><label>Time <input type="time" name="time" value="${esc(t.time || '')}"></label></div>
+    <label>How long <select name="dur">${LEN.map(([v, n]) => `<option value="${v}" ${String(t.dur || '') === String(v) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     ${repeatFields(t.rule)}
+    <fieldset><legend>Steps</legend><div class="sublist" data-subs>${subRows()}</div><div class="inline" style="margin:8px 0 0"><input data-newsub placeholder="Add a step" aria-label="Add a step"><button type="button" class="plain" data-addsub>Add</button></div></fieldset>
+    <fieldset><legend>Color</legend>${colorField(t.color)}</fieldset>
     <label>Tags <input name="tags" value="${esc((t.tags || []).join(' '))}" placeholder="home school" autocapitalize="off"></label>
     <label class="check"><input type="checkbox" name="star" ${t.star ? 'checked' : ''}> Star this task</label>
-    <label>Notes <textarea name="notes" rows="3">${esc(t.notes)}</textarea></label>${ERR}`, {
-    setup: wireRepeat,
+    <label>Notes <textarea name="notes" rows="3">${esc(t.notes)}</textarea></label>
+    ${isNew || t.done ? '' : '<button type="button" class="primary" data-focus>🎯 Focus on this</button>'}${ERR}`, {
+    setup: (f) => {
+      wireRepeat(f);
+      wireIcon(f, 'task');
+      const box = f.querySelector('[data-subs]'), add = f.querySelector('[data-newsub]');
+      const redraw = () => { box.innerHTML = subRows(); };
+      box.addEventListener('input', (e) => { const i = e.target.dataset.subt; if (i !== undefined) subs[i].t = e.target.value; });
+      box.addEventListener('change', (e) => { const i = e.target.dataset.sub; if (i !== undefined) subs[i].on = e.target.checked; });
+      box.addEventListener('click', (e) => { const b = e.target.closest('[data-subdel]'); if (b) { subs.splice(+b.dataset.subdel, 1); redraw(); } });
+      const push = () => { const v = add.value.trim(); if (!v) return; subs.push({ id: store.uid(), t: v, on: false }); add.value = ''; redraw(); add.focus(); };
+      f.querySelector('[data-addsub]').onclick = push;
+      add.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); push(); } });
+      const fb = f.querySelector('[data-focus]');
+      if (fb) fb.onclick = () => { closeSheet(); import('./focus.js').then((m) => m.start(t.id)); };
+    },
     del: isNew ? null : 'Delete',
     on: {
       save: (f) => {
@@ -125,7 +164,8 @@ export function editTask(t, { isNew } = {}) {
         if (!title) return fail(f, 'Give the task a name.');
         const date = f.date.value || (f.f.value || f.time.value ? D.iso() : null);
         const tags = [...new Set(f.tags.value.toLowerCase().match(/[\p{L}\p{N}_-]+/gu) || [])];
-        store.change(() => store.put({ ...t, title, date, time: f.time.value || null, rule: readRepeat(f, t.rule, date), star: f.star.checked, tags, notes: f.notes.value.trim() }));
+        const checklist = subs.map((x) => ({ ...x, t: x.t.trim() })).filter((x) => x.t);
+        store.change(() => store.put({ ...t, title, date, time: f.time.value || null, dur: +f.dur.value || null, rule: readRepeat(f, t.rule, date), star: f.star.checked, tags, notes: f.notes.value.trim(), emoji: f.emoji.value || null, color: f.color.value, checklist }));
       },
       del: () => toast('Task deleted', store.change(() => store.remove(t.id))),
     },
@@ -136,6 +176,7 @@ export function editTask(t, { isNew } = {}) {
 export function editEvent(e, { isNew, occ } = {}) {
   const repeats = !isNew && !!e.rule;
   sheet(isNew ? 'New event' : 'Event', `<label>Event <input name="title" ${isNew ? 'autofocus' : ''} value="${esc(e.title)}"></label>
+    ${iconField(e, 'event')}
     <label class="check"><input type="checkbox" name="allday" ${e.time ? '' : 'checked'}> All day</label>
     <div class="row2"><label>Starts <input type="date" name="date" value="${esc(e.date)}"></label><label data-timed>Time <input type="time" name="time" value="${esc(e.time || '')}"></label></div>
     <div class="row2"><label>Ends <input type="date" name="endDate" value="${esc(e.endDate || e.date)}"></label><label data-timed>Time <input type="time" name="end" value="${esc(e.end || '')}"></label></div>
@@ -143,11 +184,13 @@ export function editEvent(e, { isNew, occ } = {}) {
     ${repeatFields(e.rule, true)}
     ${repeats ? '<p class="hint">Changes apply to every time this event repeats.</p>' : ''}
     <label>Location <input name="loc" value="${esc(e.loc)}"></label>
-    <div class="colors" role="group" aria-label="Color">${COLORS.map((c, i) => `<label><input type="radio" name="color" value="${c}" ${(e.color || COLORS[0]) === c ? 'checked' : ''} aria-label="Color ${i + 1}"><span style="background:${c}"></span></label>`).join('')}</div>
+    <fieldset><legend>Color</legend>${colorField(e.color)}</fieldset>
+    <label class="check"><input type="checkbox" name="countdown" ${e.countdown ? 'checked' : ''}> Count down to it on Today</label>
     <label>Notes <textarea name="notes" rows="3">${esc(e.notes)}</textarea></label>
     ${isNew ? '' : `<div class="links"><button type="button" class="plain" data-ics>Add to Apple Calendar</button>${repeats && occ ? `<button type="button" class="plain" data-skip>Skip ${esc(D.shortDay(occ))}</button>` : ''}</div>`}${ERR}`, {
     setup: (f) => {
       wireRepeat(f);
+      wireIcon(f, 'event');
       const timed = () => {
         f.querySelectorAll('[data-timed]').forEach((x) => { x.hidden = f.allday.checked; });
         if (!f.allday.checked && !f.time.value) { f.time.value = '09:00'; f.end.value = '10:00'; }
@@ -180,7 +223,7 @@ export function editEvent(e, { isNew, occ } = {}) {
         const time = f.allday.checked ? null : f.time.value || null;
         const end = time ? f.end.value || null : null;
         if (time && end && endDate === date && end <= time) return fail(f, 'The end time is not after the start time.');
-        store.change(() => store.put({ ...e, title, date, endDate: endDate > date ? endDate : null, time, end, rule: readRepeat(f, e.rule, date), loc: f.loc.value.trim(), color: f.color.value, notes: f.notes.value.trim() }));
+        store.change(() => store.put({ ...e, title, date, endDate: endDate > date ? endDate : null, time, end, rule: readRepeat(f, e.rule, date), loc: f.loc.value.trim(), color: f.color.value, notes: f.notes.value.trim(), emoji: f.emoji.value || null, countdown: f.countdown.checked }));
       },
       del: () => toast('Event deleted', store.change(() => store.remove(e.id))),
     },
@@ -210,14 +253,15 @@ export function toIcs(e, occ) {
 export function editHabit(h) {
   const isNew = !h;
   h ||= { id: store.uid(), k: 'habit', made: Date.now(), title: '', days: [0, 1, 2, 3, 4, 5, 6] };
-  sheet(isNew ? 'New habit' : 'Habit', `<label>Habit <input name="title" ${isNew ? 'autofocus' : ''} value="${esc(h.title)}" placeholder="Walk 20 minutes"></label><fieldset><legend>On these days</legend>${dayPicks(h.days)}</fieldset>${ERR}`, {
+  sheet(isNew ? 'New habit' : 'Habit', `<label>Habit <input name="title" ${isNew ? 'autofocus' : ''} value="${esc(h.title)}" placeholder="Walk 20 minutes"></label>${iconField(h, 'habit')}<fieldset><legend>On these days</legend>${dayPicks(h.days)}</fieldset>${ERR}`, {
+    setup: (f) => wireIcon(f, 'habit'),
     del: isNew ? null : 'Delete',
     on: {
       save: (f) => {
         const title = f.title.value.trim(), days = readDays(f);
         if (!title) return fail(f, 'Give the habit a name.');
         if (!days.length) return fail(f, 'Pick at least one day.');
-        store.change(() => store.put({ ...h, title, days }));
+        store.change(() => store.put({ ...h, title, days, emoji: f.emoji.value || null }));
       },
       del: () => toast('Habit deleted', store.change(() => { store.remove(h.id); })),
     },
@@ -243,9 +287,10 @@ export function taskRow(t, { showDate = true } = {}) {
   const today = D.iso();
   const meta = [];
   if (showDate && t.date) meta.push(`<span class="${!t.done && t.date < today ? 'late' : ''}">${esc(D.friendly(t.date))}</span>`);
-  if (t.time) meta.push(D.time(t.time));
+  if (t.time) meta.push(D.time(t.time) + (t.dur ? ` · ${t.dur} min` : ''));
+  if (t.checklist?.length) meta.push(`☑︎ ${t.checklist.filter((x) => x.on).length}/${t.checklist.length}`);
   if (t.rule) meta.push(`${icon('repeat')}${esc(describe(t.rule))}`);
   meta.push(...(t.tags || []).map((x) => `#${esc(x)}`));
   return `<li class="task ${t.done ? 'done' : ''}"><button class="tick" data-act="toggleTask" data-id="${esc(t.id)}" role="checkbox" aria-checked="${!!t.done}" aria-label="${esc(t.title)}"></button>
-    <button class="text" data-act="editTask" data-id="${esc(t.id)}"><span class="t">${t.star ? '<span class="star" aria-label="Starred">★</span> ' : ''}${esc(t.title)}</span>${meta.length ? `<span class="meta">${meta.join('<i></i>')}</span>` : ''}</button></li>`;
+    <button class="text" data-act="editTask" data-id="${esc(t.id)}" style="--c:${color(t.color)}"><span class="bubble" aria-hidden="true">${emojiOf(t)}</span><span class="tx"><span class="t">${t.star ? '<span class="star" aria-label="Starred">★</span> ' : ''}${esc(t.title)}</span>${meta.length ? `<span class="meta">${meta.join('<i></i>')}</span>` : ''}</span></button></li>`;
 }
