@@ -196,6 +196,12 @@ const srv = http.createServer((q, r) => {
   await mac.evaluate(() => { location.hash = '#/tasks'; });
   await mac.clock.runFor(1500);
   await mac.waitForFunction(() => /From phone/.test(document.querySelector('main').textContent));
+  // email to tasks: the setup sheet hands over a script with the key filled in
+  await mac.evaluate(() => { location.hash = '#/settings'; });
+  await mac.click('[data-act=mailSetup]'); await mac.waitForSelector('#mailscript');
+  assert.match(await mac.inputValue('#mailscript'), /const KEY = "[0-9a-f]{64}";[\s\S]*rpc\/add_mail/);
+  await mac.click('#sheet [data-close]');
+  await mac.evaluate(() => { location.hash = '#/tasks'; }); await mac.waitForSelector('#newtask');
   // edits made offline go up when the connection is back, and the newest edit wins
   await mac.context().setOffline(true);
   await mac.fill('#newtask', 'Made offline'); await mac.press('#newtask', 'Enter');

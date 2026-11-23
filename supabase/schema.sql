@@ -82,3 +82,37 @@ do $$ begin
     alter publication supabase_realtime add table public.apple;
   end if;
 end $$;
+
+-- Email to tasks: a script in your own Google account sends new emails here with its own key.
+create table if not exists public.mail_keys (
+  user_id uuid primary key default auth.uid() references auth.users on delete cascade,
+  key_hash text not null unique check (key_hash ~ '^[0-9a-f]{64}$')
+);
+alter table public.mail_keys enable row level security;
+drop policy if exists "own mail key" on public.mail_keys;
+create policy "own mail key" on public.mail_keys for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+grant select, insert, update, delete on public.mail_keys to authenticated;
+
+-- Each email becomes one task. Only a title, notes and a link are taken; the task id comes from the
+-- email's id, so the same email never makes two tasks, and a task you delete stays deleted.
+create or replace function public.add_mail(key text, mails jsonb) returns integer
+language plpgsql security definer set search_path = public as $$
+declare who uuid; n integer;
+begin
+  select user_id into who from mail_keys where key_hash = encode(sha256(convert_to(key, 'UTF8')), 'hex');
+  if who is null then raise exception 'unknown key'; end if;
+  if jsonb_typeof(mails) <> 'array' or jsonb_array_length(mails) > 100 then raise exception 'bad mails'; end if;
+  insert into records (user_id, id, u, body, sv)
+  select who, 'mail:' || (m ->> 'id'), (m ->> 'at')::bigint,
+    jsonb_build_object('id', 'mail:' || (m ->> 'id'), 'k', 'task', 'u', (m ->> 'at')::bigint, 'made', (m ->> 'at')::bigint,
+      'title', left(coalesce(nullif(trim(m ->> 'title'), ''), '(no subject)'), 300), 'notes', left(coalesce(m ->> 'notes', ''), 2000),
+      'mail', left(coalesce(m ->> 'link', ''), 300), 'tags', jsonb_build_array('email'), 'date', null, 'done', null),
+    nextval('records_sv')
+  from jsonb_array_elements(mails) m
+  where coalesce(m ->> 'id', '') ~ '^[A-Za-z0-9_-]{1,64}$' and jsonb_typeof(m -> 'at') = 'number'
+  on conflict (user_id, id) do nothing;
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function public.add_mail(text, jsonb) from public;
+grant execute on function public.add_mail(text, jsonb) to anon, authenticated;

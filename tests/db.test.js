@@ -39,3 +39,19 @@ test('the Mac key sends Apple events for its owner only', async () => {
   await assert.rejects(as(db, null, 'select put_apple($1, $2::jsonb)', ['wrong', '{"events":[]}']));
   assert.equal((await as(db, b, 'select count(*)::int as n from feed_keys')).rows[0].n, 0);
 });
+test('the email key turns emails into tasks once, for its owner only', async () => {
+  const key = crypto.randomBytes(32).toString('hex');
+  const hash = crypto.createHash('sha256').update(key).digest('hex');
+  await as(db, a, 'insert into mail_keys (key_hash) values ($1)', [hash]);
+  const mails = [{ id: 'm1', at: 100, title: 'Pay invoice', notes: 'From Bob', link: 'https://mail.google.com/mail/#all/m1', k: 'note', evil: 1 }, { id: 'bad id!', at: 1, title: 'x' }];
+  assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key, JSON.stringify(mails)])).rows[0].n, 1);
+  assert.equal((await as(db, null, 'select add_mail($1, $2::jsonb) as n', [key, JSON.stringify(mails)])).rows[0].n, 0);
+  const t = (await as(db, a, "select body from records where id = 'mail:m1'")).rows[0].body;
+  assert.equal(t.k, 'task'); assert.equal(t.title, 'Pay invoice'); assert.deepEqual(t.tags, ['email']); assert.equal(t.evil, undefined);
+  // a task deleted in the app stays deleted when the same email comes again
+  await push(a, [{ id: 'mail:m1', k: 'task', u: 500, del: true }]);
+  await as(db, null, 'select add_mail($1, $2::jsonb)', [key, JSON.stringify(mails)]);
+  assert.equal((await as(db, a, "select body from records where id = 'mail:m1'")).rows[0].body.del, true);
+  assert.equal((await as(db, b, "select count(*)::int as n from records where id like 'mail:%'")).rows[0].n, 0);
+  await assert.rejects(as(db, null, 'select add_mail($1, $2::jsonb)', ['wrong', '[]']));
+});

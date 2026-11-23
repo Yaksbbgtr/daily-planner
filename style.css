@@ -537,3 +537,6 @@ input.switch:focus-visible, .check input[type=checkbox]:focus-visible { outline:
 
 .check { font-size: 15px; font-weight: 500; }
 .themes label { font-weight: 500; font-size: 13px; }
+.steps-how { padding-left: 22px; display: grid; gap: 12px; margin-bottom: 14px; }
+.steps-how .primary { margin-top: 8px; }
+.mailbtn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }

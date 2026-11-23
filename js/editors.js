@@ -184,6 +184,7 @@ export function editTask(t, { isNew } = {}) {
     <label>Tags <input name="tags" value="${esc((t.tags || []).join(' '))}" placeholder="home school" autocapitalize="off"></label>
     <label class="check"><input type="checkbox" name="star" ${t.star ? 'checked' : ''}> Star this task</label>
     <label>Notes <textarea name="notes" rows="3">${esc(t.notes)}</textarea></label>
+    ${/^https:\/\/mail\.google\.com\//.test(t.mail || '') ? `<a class="plain mailbtn" href="${esc(t.mail)}" target="_blank" rel="noopener">${glyph('mail')} Open the email</a>` : ''}
     ${isNew || t.done ? '' : `<button type="button" class="primary" data-focus>${glyph('target')} Focus on this</button>`}${ERR}`, {
     setup: (f) => {
       wireRepeat(f);
