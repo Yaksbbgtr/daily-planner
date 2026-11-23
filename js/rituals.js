@@ -1,7 +1,7 @@
 // Morning planning and evening wrap-up, after Sunsama's daily rituals.
 import * as D from './dates.js';
 import * as store from './store.js';
-import { emojiOf } from './emoji.js';
+import { emojiOf, glyph } from './emoji.js';
 import { esc, sheet, toast, color } from './ui.js';
 
 const row = (t, opts, pick) => `<li class="task"><div class="text" style="--c:${color(t.color)}"><span class="bubble" aria-hidden="true">${emojiOf(t)}</span><span class="tx"><span class="t">${esc(t.title)}</span>${t.date ? `<span class="meta">${esc(D.friendly(t.date))}</span>` : ''}</span></div>
@@ -25,7 +25,7 @@ export function planDay() {
   sheet('Plan your day', `<p class="hint">${due.length ? `${due.length} task${due.length > 1 ? 's' : ''} already on today.` : 'Nothing on today yet.'} Choose what else today is for.</p>
     ${late.length ? `<h3>Left from before</h3><ul class="rows card ritual-list">${late.map((t) => row(t, [['today', 'Today'], ['later', 'Later'], ['done', 'Done']], 'today')).join('')}</ul>` : ''}
     ${inbox.length ? `<h3>From your inbox</h3><ul class="rows card ritual-list">${inbox.map((t) => row(t, [['today', 'Today'], ['skip', 'Not today']], 'skip')).join('')}</ul>` : ''}
-    ${!late.length && !inbox.length ? '<p class="bigcount">☀️</p><p class="hint" style="text-align:center">You are all caught up.</p>' : ''}`, {
+    ${!late.length && !inbox.length ? `<p class="bigcount">${glyph('sun', 'g big')}</p><p class="hint" style="text-align:center">You are all caught up.</p>` : ''}`, {
     save: 'Start my day',
     setup: (f) => { read = choices(f); },
     on: { save: () => {
@@ -50,7 +50,7 @@ export function wrapDay() {
   const done = store.all('task').filter((t) => t.done && D.iso(new Date(t.done)) === today);
   const open = store.all('task').filter((t) => !t.done && t.date && t.date <= today);
   let read;
-  sheet('Wrap up the day', `<p class="bigcount">${done.length ? `${done.length} 🎉` : '🌙'}</p><p class="hint" style="text-align:center">${done.length ? `You finished ${done.length} task${done.length > 1 ? 's' : ''} today.` : 'A quiet day. That counts too.'}</p>
+  sheet('Wrap up the day', `<p class="bigcount">${done.length ? `${done.length} ${glyph('party-popper', 'g big')}` : glyph('moon', 'g big')}</p><p class="hint" style="text-align:center">${done.length ? `You finished ${done.length} task${done.length > 1 ? 's' : ''} today.` : 'A quiet day. That counts too.'}</p>
     ${open.length ? `<h3>Still open</h3><ul class="rows card ritual-list">${open.map((t) => row(t, [['tomorrow', 'Tomorrow'], ['later', 'Later'], ['done', 'Done']], 'tomorrow')).join('')}</ul>` : ''}
     <label>A line for your journal <textarea name="j" rows="3" placeholder="What went well today?">${esc(store.get('j:' + today)?.body)}</textarea></label>`, {
     save: 'Close the day',

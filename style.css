@@ -1,11 +1,11 @@
 /* Daily Planner: big, round and friendly. Four looks, picked in Settings; every color comes from these tokens. */
 :root, [data-theme=dusk] {
   color-scheme: dark;
-  --bg: #121219; --bg-glow: rgb(255 138 92 / .16); --card: #1d1d28; --card2: #282835; --line: rgb(255 255 255 / .07);
-  --ink: #f6f4ff; --soft: #aeacc2; --faint: #74728a;
+  --bg: #050505; --bg-glow: rgb(255 138 92 / .10); --card: #151515; --card2: #222222; --line: rgb(255 255 255 / .08);
+  --ink: #f5f5f5; --soft: #a8a8a8; --faint: #6e6e6e;
   --accent: #ff8a5c; --accent2: #b69cff; --on-accent: #1d0f0a;
   --holy: #ffc66e; --holy-bg: rgb(255 198 110 / .14); --good: #5fd3a5; --late: #ff6b6b;
-  --dock-bg: rgb(36 36 48 / .78); --shadow: 0 12px 32px rgb(0 0 0 / .45);
+  --dock-bg: rgb(30 30 30 / .82); --shadow: 0 12px 32px rgb(0 0 0 / .45);
 }
 [data-theme=daylight] {
   color-scheme: light;
@@ -467,3 +467,25 @@ li.steps li.on span:last-child { color: var(--soft); text-decoration: line-throu
 .pillselect { width: auto; min-height: 40px; border-radius: 999px; padding: 6px 14px; font-weight: 650; }
 .rows > li.steps::before { display: none; }
 li.steps ul { flex: 1; }
+
+/* ---------- black-and-white line icons ---------- */
+svg.g { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.125em; flex: none; }
+svg.g.s { width: 15px; height: 15px; margin-right: 4px; vertical-align: -2px; stroke-width: 2; }
+svg.g.big { width: 56px; height: 56px; stroke-width: 1.5; }
+.bubble { color: var(--ink); font-size: 24px; background: var(--card2); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c, var(--ink)) 55%, transparent); }
+.bubble.big, .ptop .bubble { font-size: 27px; }
+.habbtn .bubble { font-size: 32px; background: var(--card); }
+.hab.did .habbtn .bubble, .cklist li.on .ck .bubble { background: var(--ink); color: var(--bg); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink) 18%, transparent); }
+.cklist .ck .bubble { font-size: 24px; }
+.emojis span { font-size: 22px; color: var(--ink); }
+.emojis :checked + span { background: var(--ink); color: var(--bg); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 25%, transparent); }
+.parts .pe { font-size: 24px; }
+.parts [aria-pressed=true] { background: var(--ink); color: var(--bg); }
+.seg.wide :checked + span { background: var(--ink); color: var(--bg); }
+.timeline .zman .dot { font-size: 16px; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); }
+.bigcount { color: var(--ink); display: flex; align-items: center; justify-content: center; gap: 12px; }
+#focus .emoji { font-size: 40px; }
+.star { color: var(--ink); }
+.star svg.g.s { fill: currentColor; margin-right: 2px; }
+.chip svg.g { font-size: 18px; vertical-align: -3px; margin-right: 2px; }
+.cd .bubble { font-size: 22px; }

@@ -29,3 +29,5 @@ Setting up a project: create it, run `supabase/schema.sql` in its SQL Editor, tu
 ## License
 
 GPL-2.0-or-later, because it includes [@hebcal/core](https://github.com/hebcal/hebcal-es6) 6.16.1 (`vendor/hebcal.js`).
+
+Icons: most line icons are from [Lucide](https://lucide.dev) (ISC License); see `js/glyphs.js`.

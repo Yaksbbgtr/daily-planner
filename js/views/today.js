@@ -4,10 +4,9 @@ import * as store from '../store.js';
 import * as J from '../jewish.js';
 import { eventsOn, tasksDue, taskSort } from '../agenda.js';
 import { taskRow, streak, hid } from '../editors.js';
-import { emojiOf } from '../emoji.js';
+import { emojiOf, glyph } from '../emoji.js';
 import { color, esc, icon, ring } from '../ui.js';
 import * as checklist from '../checklist.js';
-import { nextAfter, startsOn } from '../recur.js';
 
 export const st = { day: null };
 const p2 = (n) => String(n).padStart(2, '0');
@@ -40,7 +39,7 @@ function glance(day, today, dueAll) {
   const done = dueAll.filter((t) => t.done).length, total = dueAll.length;
   const z = J.zmanim(day);
   let sun = '';
-  if (!z) sun = `<a class="glancecard nudge" href="#/settings"><span class="big">📍</span><span>Set your location for zmanim and candle lighting</span></a>`;
+  if (!z) sun = `<a class="glancecard nudge" href="#/settings"><span class="big">${glyph('map-pin', 'g big')}</span><span>Set your location for zmanim and candle lighting</span></a>`;
   else {
     const now = Date.now();
     const candles = J.day(day).items.find((x) => x.kind === 'candles' || x.kind === 'ends');
@@ -62,9 +61,9 @@ function timeline(day, today) {
   // Sunrise, sunset and candle lighting sit in the day as markers.
   const z = J.zmanim(day);
   if (z) {
-    const pick = { sunrise: '🌅', sunset: '🌇' };
+    const pick = { sunrise: 'sunrise', sunset: 'sunset' };
     for (const x of z) if (pick[x.id]) timed.push({ kind: 'zman', at: hm(x.at), name: x.name, emoji: pick[x.id], when: x.at });
-    for (const x of J.day(day).items) if (x.at && (x.kind === 'candles' || x.kind === 'ends')) timed.push({ kind: 'zman', at: hm(x.at), name: x.text, emoji: '🕯️', when: x.at, holy: true });
+    for (const x of J.day(day).items) if (x.at && (x.kind === 'candles' || x.kind === 'ends')) timed.push({ kind: 'zman', at: hm(x.at), name: x.text, emoji: 'candle', when: x.at, holy: true });
   }
   timed.sort((a, b) => a.at.localeCompare(b.at) || (a.kind === 'zman' ? -1 : 1));
   const nowM = day === today ? new Date().getHours() * 60 + new Date().getMinutes() : null;
@@ -74,7 +73,7 @@ function timeline(day, today) {
     const m = mins(it.at);
     if (!nowShown && m > nowM) { html += nowLine(); nowShown = true; }
     if (it.kind !== 'zman' && lastEnd !== null && m - lastEnd >= 90) html += `<li class="gap">${span(m - lastEnd)} free</li>`;
-    if (it.kind === 'zman') html += `<li class="zman ${it.holy ? 'holy' : ''}"><span class="time">${esc(J.formatTime(it.when))}</span><span class="dot">${it.emoji}</span><span class="t">${esc(it.name)}</span></li>`;
+    if (it.kind === 'zman') html += `<li class="zman ${it.holy ? 'holy' : ''}"><span class="time">${esc(J.formatTime(it.when))}</span><span class="dot">${glyph(it.emoji)}</span><span class="t">${esc(it.name)}</span></li>`;
     else if (it.kind === 'event') {
       const e = it.e;
       html += `<li class="slot"><span class="time">${e.time ? esc(D.time(e.time)) : ''}</span><button class="block" data-act="openEvent" data-id="${esc(e.id)}" data-day="${day}" ${e.occ ? `data-occ="${e.occ}"` : ''} style="--c:${color(e.color)}"><span class="bubble">${emojiOf({ ...e, k: 'event' })}</span><span class="what"><span class="t">${esc(e.title)}</span><span class="meta">${[e.time && e.end ? `${D.time(e.time)} – ${D.time(e.end)}` : e.cont && e.end ? `until ${D.time(e.end)}` : '', esc(e.loc || ''), e.apple ? esc(e.cal) : ''].filter(Boolean).join('<i></i>')}</span></span></button></li>`;
@@ -98,31 +97,10 @@ function habits(day, today) {
   const rows = on.map((h) => {
     const did = !!store.get(hid(h.id, day)), n = streak(h, day);
     return `<li class="hab ${did ? 'did' : ''}"><button class="habbtn" data-act="toggleHabit" data-id="${esc(h.id)}" data-day="${day}" aria-pressed="${did}" aria-label="${esc(h.title)}"><span class="bubble">${emojiOf({ ...h, k: 'habit' })}</span></button>
-      <button class="habname" data-act="editHabit" data-id="${esc(h.id)}"><span class="t">${esc(h.title)}</span><span class="meta">${n > 0 ? `🔥 ${n} in a row` : 'Tap the circle when done'}</span></button></li>`;
+      <button class="habname" data-act="editHabit" data-id="${esc(h.id)}"><span class="t">${esc(h.title)}</span><span class="meta">${n > 0 ? `${glyph('flame', 'g s')}${n} in a row` : 'Tap the circle when done'}</span></button></li>`;
   }).join('');
   const rest = all.length - on.length;
   return `<section class="card habits"><header><h2>Habits</h2><button class="plain" data-act="editHabit">Add</button></header>${rows ? `<ul class="habs">${rows}</ul>` : `<p class="empty">${all.length ? 'No habits on this day.' : 'Things you want to do regularly. Tick them off here each day.'}</p>`}${rows && rest ? `<p class="hint pad-s">${rest} more on other days</p>` : ''}</section>`;
-}
-
-// Big round countdown cards (after TickTick): events marked "count down", and the next yom tov.
-function countdowns(today) {
-  const out = [];
-  for (const e of store.all('event')) {
-    if (!e.countdown) continue;
-    const next = startsOn(e.date, e.rule, today) ? today : e.rule ? nextAfter(e.date, e.rule, today) : e.date >= today ? e.date : null;
-    if (next) out.push({ title: e.title, date: next, emoji: emojiOf({ ...e, k: 'event' }), c: color(e.color), id: e.id });
-  }
-  for (let i = 1; i <= 150; i++) {
-    const d = D.addDays(today, i);
-    const yt = J.day(d).items.find((x) => x.kind === 'yomtov');
-    if (yt) { out.push({ title: yt.text.replace(/ I$/, ''), date: d, emoji: '🕯️', holy: true }); break; }
-  }
-  if (!out.length) return '';
-  out.sort((a, b) => a.date.localeCompare(b.date));
-  return `<div class="countdowns" aria-label="Countdowns">${out.map((x) => {
-    const n = D.diffDays(today, x.date);
-    return `<${x.id ? `button data-act="openEvent" data-id="${esc(x.id)}" data-day="${x.date}" data-occ="${x.date}"` : 'div'} class="cd ${x.holy ? 'holy' : ''}" ${x.c ? `style="--c:${x.c}"` : ''}><span class="bubble" style="width:44px;height:44px;font-size:22px">${x.emoji}</span><span><span class="n">${n === 0 ? 'Today' : n}</span> <span class="u">${n === 0 ? '' : n === 1 ? 'day' : 'days'}</span></span><span class="t">${esc(x.title)}</span></${x.id ? 'button' : 'div'}>`;
-  }).join('')}</div>`;
 }
 
 export function zmanimPage(day) {
@@ -152,9 +130,8 @@ export function render(sub) {
     ${day !== today ? `<button class="pillbtn back" data-act="pickToday" data-day="${today}">Back to today</button>` : ''}
     ${items.length || parsha ? `<div class="chips">${jewishChips(items)}${parsha ? `<span class="chip parsha">${esc(parsha)}</span>` : ''}</div>` : ''}
     ${glance(day, today, dueAll)}
-    ${day === today ? countdowns(today) : ''}
-    ${day === today && new Date().getHours() < 11 && !store.get('plan:' + today) ? `<button class="ritual" data-act="planDay"><span class="bubble">☀️</span><span><b>Plan your day</b><span class="meta">Pick what today is for</span></span></button>` : ''}
-    ${day === today && new Date().getHours() >= 17 && !store.get('wrap:' + today) ? `<button class="ritual" data-act="wrapDay"><span class="bubble">🌙</span><span><b>Wrap up the day</b><span class="meta">See what you did and move the rest</span></span></button>` : ''}
+    ${day === today && new Date().getHours() < 11 && !store.get('plan:' + today) ? `<button class="ritual" data-act="planDay"><span class="bubble">${glyph('sun')}</span><span><b>Plan your day</b><span class="meta">Pick what today is for</span></span></button>` : ''}
+    ${day === today && new Date().getHours() >= 17 && !store.get('wrap:' + today) ? `<button class="ritual" data-act="wrapDay"><span class="bubble">${glyph('moon')}</span><span><b>Wrap up the day</b><span class="meta">See what you did and move the rest</span></span></button>` : ''}
     ${checklist.card(day, today)}
     ${late.length ? `<section class="card tasks late-card"><header><h2 class="late">Overdue</h2><button class="plain" data-act="rollOver">Move all to today</button></header><ul class="rows">${late.map((t) => taskRow(t)).join('')}</ul></section>` : ''}
     <div class="cols"><div>${timeline(day, today)}</div><div>

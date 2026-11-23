@@ -5,7 +5,7 @@ import { parse } from './quickadd.js';
 import { describe, nextAfter } from './recur.js';
 import { day as hebDay } from './jewish.js';
 import { $, esc, icon, sheet, closeSheet, toast, download, color } from './ui.js';
-import { PICKS, guess, emojiOf } from './emoji.js';
+import { PICKS, guess, emojiOf, glyph, iconName } from './emoji.js';
 
 export const COLORS = ['#ff8a5c', '#ffc145', '#5fd3a5', '#4cc9f0', '#b69cff', '#ff7eb6', '#9aa5b1'];
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -40,14 +40,14 @@ function readRepeat(form, old, date) {
 }
 // A round picture for the item: picked from a grid, or guessed from the title ("Auto").
 function iconField(rec, kind) {
-  const cur = rec.emoji || '';
+  const cur = rec.emoji ? iconName(rec) : '';
   return `<div class="picked"><span class="bubble" data-preview style="--c:${color(rec.color)}">${emojiOf({ ...rec, k: kind })}</span><div class="grow"><b>Icon</b><p class="hint">Pick one, or leave it on Auto</p></div></div>
-    <div class="emojis" role="radiogroup" aria-label="Icon"><label class="auto"><input type="radio" name="emoji" value="" ${cur ? '' : 'checked'} aria-label="Auto"><span>Auto</span></label>${PICKS.map((e) => `<label><input type="radio" name="emoji" value="${e}" ${cur === e ? 'checked' : ''} aria-label="${e}"><span>${e}</span></label>`).join('')}</div>`;
+    <div class="emojis" role="radiogroup" aria-label="Icon"><label class="auto"><input type="radio" name="emoji" value="" ${cur ? '' : 'checked'} aria-label="Auto"><span>Auto</span></label>${PICKS.map((e) => `<label><input type="radio" name="emoji" value="${e}" ${cur === e ? 'checked' : ''} aria-label="${e.replace(/-/g, ' ')}"><span>${glyph(e)}</span></label>`).join('')}</div>`;
 }
 function wireIcon(form, kind) {
   const upd = () => {
     const b = form.querySelector('[data-preview]');
-    b.textContent = form.emoji.value || guess(form.title.value, kind);
+    b.innerHTML = glyph(form.emoji.value || guess(form.title.value, kind));
     const c = form.querySelector('[name=color]:checked');
     if (c) b.style.setProperty('--c', c.value);
   };
@@ -64,7 +64,7 @@ export function quickAdd({ kind = null, date = null } = {}) {
   let picked = kind;
   sheet('Add', `<input id="qa" name="text" autofocus autocomplete="off" enterkeyhint="done" placeholder="Dentist tomorrow 3pm" aria-label="What to add">
     <div class="seg" role="group" aria-label="Type">${[['task', 'Task'], ['event', 'Event'], ['note', 'Note']].map(([k, t]) => `<button type="button" data-kind="${k}">${t}</button>`).join('')}</div>
-    <div class="picked qa-preview"><span class="bubble" data-qabub aria-hidden="true">✅</span><p class="preview grow" aria-live="polite"></p></div>${ERR}`, {
+    <div class="picked qa-preview"><span class="bubble" data-qabub aria-hidden="true">${glyph('circle-check')}</span><p class="preview grow" aria-live="polite"></p></div>${ERR}`, {
     save: 'Add',
     on: { save: (form) => {
       const r = build(form.text.value, picked, date);
@@ -77,7 +77,7 @@ export function quickAdd({ kind = null, date = null } = {}) {
         const r = build(form.text.value, picked, date);
         form.querySelectorAll('[data-kind]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.kind === r.kind));
         $('.preview', form).textContent = summary(r);
-        $('[data-qabub]', form).textContent = r.kind === 'note' ? '📝' : guess(r.rec.title, r.kind);
+        $('[data-qabub]', form).innerHTML = glyph(r.kind === 'note' ? 'notebook-pen' : guess(r.rec.title, r.kind));
         $('.err', form).hidden = true;
       };
       form.text.oninput = upd;
@@ -118,7 +118,7 @@ function summary({ kind, rec }) {
 /* ---------- tasks ---------- */
 const projectField = (cur) => {
   const ps = store.all('project').filter((p) => !p.done || p.id === cur).sort((a, b) => a.made - b.made);
-  return `<label>Project <select name="proj"><option value="">None</option>${ps.map((p) => `<option value="${esc(p.id)}" ${p.id === cur ? 'selected' : ''}>${emojiOf({ ...p, k: 'project' })} ${esc(p.title)}</option>`).join('')}</select></label>`;
+  return `<label>Project <select name="proj"><option value="">None</option>${ps.map((p) => `<option value="${esc(p.id)}" ${p.id === cur ? 'selected' : ''}>${esc(p.title)}</option>`).join('')}</select></label>`;
 };
 export function toggleStep(id, step) {
   const t = store.get(id);
@@ -184,7 +184,7 @@ export function editTask(t, { isNew } = {}) {
     <label>Tags <input name="tags" value="${esc((t.tags || []).join(' '))}" placeholder="home school" autocapitalize="off"></label>
     <label class="check"><input type="checkbox" name="star" ${t.star ? 'checked' : ''}> Star this task</label>
     <label>Notes <textarea name="notes" rows="3">${esc(t.notes)}</textarea></label>
-    ${isNew || t.done ? '' : '<button type="button" class="primary" data-focus>🎯 Focus on this</button>'}${ERR}`, {
+    ${isNew || t.done ? '' : `<button type="button" class="primary" data-focus>${glyph('target')} Focus on this</button>`}${ERR}`, {
     setup: (f) => {
       wireRepeat(f);
       wireIcon(f, 'task');
@@ -227,7 +227,6 @@ export function editEvent(e, { isNew, occ } = {}) {
     ${repeats ? '<p class="hint">Changes apply to every time this event repeats.</p>' : ''}
     <label>Location <input name="loc" value="${esc(e.loc)}"></label>
     <fieldset><legend>Color</legend>${colorField(e.color)}</fieldset>
-    <label class="check"><input type="checkbox" name="countdown" ${e.countdown ? 'checked' : ''}> Count down to it on Today</label>
     <label>Notes <textarea name="notes" rows="3">${esc(e.notes)}</textarea></label>
     ${isNew ? '' : `<div class="links"><button type="button" class="plain" data-ics>Add to Apple Calendar</button>${repeats && occ ? `<button type="button" class="plain" data-skip>Skip ${esc(D.shortDay(occ))}</button>` : ''}</div>`}${ERR}`, {
     setup: (f) => {
@@ -265,7 +264,7 @@ export function editEvent(e, { isNew, occ } = {}) {
         const time = f.allday.checked ? null : f.time.value || null;
         const end = time ? f.end.value || null : null;
         if (time && end && endDate === date && end <= time) return fail(f, 'The end time is not after the start time.');
-        store.change(() => store.put({ ...e, title, date, endDate: endDate > date ? endDate : null, time, end, rule: readRepeat(f, e.rule, date), loc: f.loc.value.trim(), color: f.color.value, notes: f.notes.value.trim(), emoji: f.emoji.value || null, countdown: f.countdown.checked }));
+        store.change(() => store.put({ ...e, title, date, endDate: endDate > date ? endDate : null, time, end, rule: readRepeat(f, e.rule, date), loc: f.loc.value.trim(), color: f.color.value, notes: f.notes.value.trim(), emoji: f.emoji.value || null }));
       },
       del: () => toast('Event deleted', store.change(() => store.remove(e.id))),
     },
@@ -344,13 +343,13 @@ export function taskRow(t, { showDate = true, subs = false, noProj = false } = {
   const meta = [];
   if (showDate && t.date) meta.push(`<span class="${!t.done && t.date < today ? 'late' : ''}">${esc(D.friendly(t.date))}</span>`);
   if (t.time) meta.push(D.time(t.time) + (t.dur ? ` · ${t.dur} min` : ''));
-  if (t.checklist?.length) meta.push(`☑︎ ${t.checklist.filter((x) => x.on).length}/${t.checklist.length}`);
+  if (t.checklist?.length) meta.push(`${glyph('check', 'g s')}${t.checklist.filter((x) => x.on).length}/${t.checklist.length}`);
   if (t.rule) meta.push(`${icon('repeat')}${esc(describe(t.rule))}`);
   const p = !noProj && t.proj && store.get(t.proj);
-  if (p) meta.push(`${emojiOf({ ...p, k: 'project' })} ${esc(p.title)}`);
+  if (p) meta.push(`${glyph('folder-kanban', 'g s')}${esc(p.title)}`);
   meta.push(...(t.tags || []).map((x) => `#${esc(x)}`));
   const row = `<li class="task ${t.done ? 'done' : ''}"><button class="tick" data-act="toggleTask" data-id="${esc(t.id)}" role="checkbox" aria-checked="${!!t.done}" aria-label="${esc(t.title)}"></button>
-    <button class="text" data-act="editTask" data-id="${esc(t.id)}" style="--c:${color(t.color)}"><span class="bubble" aria-hidden="true">${emojiOf(t)}</span><span class="tx"><span class="t">${t.star ? '<span class="star" aria-label="Starred">★</span> ' : ''}${esc(t.title)}</span>${meta.length ? `<span class="meta">${meta.join('<i></i>')}</span>` : ''}</span></button></li>`;
+    <button class="text" data-act="editTask" data-id="${esc(t.id)}" style="--c:${color(t.color)}"><span class="bubble" aria-hidden="true">${emojiOf(t)}</span><span class="tx"><span class="t">${t.star ? `<span class="star" role="img" aria-label="Starred">${glyph('star', 'g s')}</span>` : ''}${esc(t.title)}</span>${meta.length ? `<span class="meta">${meta.join('<i></i>')}</span>` : ''}</span></button></li>`;
   // Subtasks right under their task, each with its own round tick.
   if (!subs || t.done || !t.checklist?.length) return row;
   return row + `<li class="steps"><ul>${t.checklist.map((x) => `<li class="${x.on ? 'on' : ''}"><button data-act="toggleStep" data-id="${esc(t.id)}" data-step="${esc(x.id)}" role="checkbox" aria-checked="${!!x.on}"><span class="mini" aria-hidden="true"></span><span dir="auto">${esc(x.t)}</span></button></li>`).join('')}</ul></li>`;

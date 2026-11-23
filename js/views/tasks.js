@@ -52,6 +52,6 @@ function projectPage(pid) {
     <div class="narrow">${ts.length ? `<div class="pbar" style="--c:${color(p.color)}"><i style="width:${Math.round((100 * done.length) / ts.length)}%"></i></div>` : ''}
     ${p.notes ? `<p class="pnotes" dir="auto">${esc(p.notes)}</p>` : ''}
     <form class="inline" data-submit="addTask" data-proj="${esc(pid)}"><input id="newtask" name="t" autocomplete="off" enterkeyhint="done" placeholder="Add a task to this project" aria-label="Add a task"><button class="primary">Add</button></form>
-    ${open.length ? `<section class="card"><ul class="rows">${open.map(row).join('')}</ul></section>` : ts.length ? `<p class="empty big">🎉 Every task is done.${p.done ? '' : ` <button class="primary" data-act="finishProject" data-id="${esc(pid)}">Mark project finished</button>`}</p>` : '<p class="empty big">Add the first task above. Tap a task to give it subtasks.</p>'}
+    ${open.length ? `<section class="card"><ul class="rows">${open.map(row).join('')}</ul></section>` : ts.length ? `<p class="empty big">Every task is done.${p.done ? '' : ` <button class="primary" data-act="finishProject" data-id="${esc(pid)}">Mark project finished</button>`}</p>` : '<p class="empty big">Add the first task above. Tap a task to give it subtasks.</p>'}
     ${done.length ? `<section class="card"><details id="pdone-${esc(pid)}"><summary>${done.length} done</summary><ul class="rows">${done.map(row).join('')}</ul></details></section>` : ''}</div>`;
 }

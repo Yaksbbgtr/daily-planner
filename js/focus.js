@@ -1,7 +1,7 @@
 // A full-screen focus timer with a big ring, like the focus timers in TickTick and Tiimo.
 // The end time is saved, so the timer keeps going if the app is closed and opened again.
 import * as store from './store.js';
-import { emojiOf } from './emoji.js';
+import { emojiOf, glyph } from './emoji.js';
 import { esc, toast } from './ui.js';
 import { toggleTask } from './editors.js';
 
@@ -62,7 +62,7 @@ function pill() {
   }
   const left = f.end - Date.now();
   if (left <= 0) return finish();
-  p.textContent = `🎯 ${fmt(left)}`;
+  p.innerHTML = `${glyph('target')} ${fmt(left)}`;
 }
 
 function loop() {
