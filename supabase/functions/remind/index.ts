@@ -3,7 +3,8 @@
 // A signed-in person can also call it with { test: true } to get a test notification on their devices.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
-import { due, localDay } from 'https://yaksbbgtr.github.io/daily-planner/js/reminders.js';
+// A copy of the app's js/reminders.js (with dates.js and recur.js), put here by setup-reminders.sh.
+import { due, localDay } from './lib/reminders.js';
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };

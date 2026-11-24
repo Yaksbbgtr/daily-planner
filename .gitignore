@@ -1,3 +1,4 @@
 .DS_Store
 node_modules/
 mac/build/
+supabase/functions/remind/lib/

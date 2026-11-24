@@ -27,6 +27,7 @@ select cron.schedule('planner-remind', '* * * * *', \$job\$
 \$job\$);
 SQL
 echo "2/3 Reminder job"
+mkdir -p supabase/functions/remind/lib && cp js/reminders.js js/recur.js js/dates.js supabase/functions/remind/lib/
 $SB functions deploy remind --project-ref "$REF" --use-api --no-verify-jwt
 echo "3/3 Schedule"
 $SB db query --linked --project-ref "$REF" -f "$tmp/config.sql" >/dev/null
