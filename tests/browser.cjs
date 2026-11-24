@@ -140,7 +140,7 @@ const srv = http.createServer((q, r) => {
   await mac.fill('#notesearch', 'zzz'); assert.equal(await mac.locator('.note').count(), 0);
   await mac.fill('#notesearch', '');
   // note folders
-  await mac.click('.chip.add'); await mac.fill('#sheet [name=title]', 'Recipes'); await mac.click('#sheet .primary');
+  await mac.click('.ftile.add'); await mac.fill('#sheet [name=title]', 'Recipes'); await mac.click('#sheet .primary');
   await mac.waitForFunction(() => /Recipes/.test(document.querySelector('.fgrid.folders [aria-pressed=true]')?.textContent));
   assert.equal(await mac.locator('.note').count(), 0);
   await mac.click('[data-act=newNote]'); await mac.fill('#notetitle', 'Kugel');
