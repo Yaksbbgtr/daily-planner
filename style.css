@@ -663,3 +663,15 @@ input.switch:focus-visible, .check input[type=checkbox]:focus-visible { outline:
 .progf input[type=range], #focus .fprog input[type=range] { background: none !important; box-shadow: none !important; padding: 0 !important; border: 0; min-height: 36px; border-radius: 0 !important; -webkit-appearance: auto; appearance: auto; }
 #focus .fprog .tprog b { background: var(--accent); }
 .meta .nw { white-space: nowrap; }
+/* note folders as a grid */
+.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin: 14px 0 18px; }
+.ftile { display: grid; justify-items: start; align-content: start; gap: 4px; text-align: left; padding: 16px; min-height: 112px; border-radius: var(--r-m, 22px); background: var(--card); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); }
+.ftile .fic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); margin-bottom: 6px; }
+.ftile .fic .g, .ftile .fic svg { width: 22px; height: 22px; }
+.ftile .fn { font-weight: 750; font-size: 16px; overflow-wrap: anywhere; }
+.ftile .fc { color: var(--soft); font-size: 13.5px; }
+.ftile[aria-pressed=true] { background: color-mix(in srgb, var(--accent) 22%, var(--card)); box-shadow: inset 0 0 0 2px var(--accent); }
+.ftile.add { background: none; box-shadow: inset 0 0 0 1.5px var(--line); border: 0; outline-offset: 2px; color: var(--soft); align-content: center; justify-items: center; text-align: center; }
+.ftile.add .fic { background: var(--card2); color: var(--ink); }
+.frename { display: flex; justify-content: flex-end; margin: -8px 0 12px; }
+@media (max-width: 619px) { .fgrid { grid-template-columns: repeat(2, 1fr); gap: 10px; } .ftile { min-height: 100px; padding: 14px; } }

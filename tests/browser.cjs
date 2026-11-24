@@ -141,13 +141,13 @@ const srv = http.createServer((q, r) => {
   await mac.fill('#notesearch', '');
   // note folders
   await mac.click('.chip.add'); await mac.fill('#sheet [name=title]', 'Recipes'); await mac.click('#sheet .primary');
-  await mac.waitForFunction(() => /Recipes/.test(document.querySelector('.chips.folders [aria-pressed=true]')?.textContent));
+  await mac.waitForFunction(() => /Recipes/.test(document.querySelector('.fgrid.folders [aria-pressed=true]')?.textContent));
   assert.equal(await mac.locator('.note').count(), 0);
   await mac.click('[data-act=newNote]'); await mac.fill('#notetitle', 'Kugel');
   await mac.evaluate(() => { location.hash = '#/notes'; });
   await mac.waitForSelector('.note');
   assert.equal(await mac.locator('.note').count(), 1);
-  await mac.click('.chips.folders [data-id=""]');
+  await mac.click('.fgrid.folders [data-id=""]');
   assert.equal(await mac.locator('.note').count(), 2);
   await mac.screenshot({ path: shots + '/folders.png' });
   // projects with subtasks
