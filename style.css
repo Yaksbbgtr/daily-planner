@@ -415,7 +415,7 @@ li.task.swiping { z-index: 0; isolation: isolate; }
 }
 
 /* ---------- daily checklist ---------- */
-.parts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 0 16px 14px; }
+.parts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 16px 16px 14px; }
 .parts button { display: grid; justify-items: center; gap: 2px; padding: 12px 4px; border-radius: 22px; background: var(--card2); color: var(--soft); transition: background .25s, transform .15s; }
 .parts button:active { transform: scale(.96); }
 .parts .pe { font-size: 26px; line-height: 1.1; }
