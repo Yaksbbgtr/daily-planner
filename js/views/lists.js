@@ -12,7 +12,8 @@ export function render(id) {
       ${items.length ? `<section class="card"><ul class="rows">${items.filter((x) => !x.on).map(row).join('')}${done.map(row).join('')}</ul></section>` : '<p class="empty big">This list is empty.</p>'}
       ${done.length ? `<div class="links"><button class="plain" data-act="uncheckAll" data-id="${esc(id)}">Uncheck all</button><button class="plain" data-act="clearChecked" data-id="${esc(id)}">Remove checked</button></div>` : ''}</div>`;
   }
-  const lists = store.all('list').sort((a, b) => a.made - b.made);
+  // A project's checklists live on that project's page.
+  const lists = store.all('list').filter((x) => !x.proj).sort((a, b) => a.made - b.made);
   return `<header class="bar"><h1>Lists</h1><div class="tools"><button class="primary" data-act="renameList">New list</button></div></header>
     ${lists.length ? `<div class="tiles">${lists.map((x) => { const it = itemsOf(x.id), left = it.filter((i) => !i.on); return `<a class="card tile" href="#/lists/${esc(x.id)}"><h2 dir="auto">${esc(x.title)}</h2><p class="hint">${left.length ? `${left.length} left` : it.length ? 'All checked' : 'Empty'}</p><p class="peek" dir="auto">${left.slice(0, 4).map((i) => esc(i.title)).join(', ')}</p></a>`; }).join('')}</div>` : '<p class="empty big">Shopping, packing, anything you check off and reuse.</p>'}`;
 }

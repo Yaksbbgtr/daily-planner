@@ -169,3 +169,51 @@ begin
 end $$;
 revoke all on function public.widget_data(text) from public;
 grant execute on function public.widget_data(text) to anon, authenticated;
+
+-- Photos and files added to projects: a private folder per person (files/<user id>/...), only theirs to read or change.
+insert into storage.buckets (id, name, public, file_size_limit) values ('files', 'files', false, 26214400)
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit;
+drop policy if exists "own files read" on storage.objects;
+create policy "own files read" on storage.objects for select to authenticated using (bucket_id = 'files' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "own files add" on storage.objects;
+create policy "own files add" on storage.objects for insert to authenticated with check (bucket_id = 'files' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "own files change" on storage.objects;
+create policy "own files change" on storage.objects for update to authenticated using (bucket_id = 'files' and (storage.foldername(name))[1] = auth.uid()::text) with check (bucket_id = 'files' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "own files remove" on storage.objects;
+create policy "own files remove" on storage.objects for delete to authenticated using (bucket_id = 'files' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Reminders: each device that turns them on saves its push address here, with its time zone.
+create table if not exists public.push_subs (
+  endpoint text primary key check (endpoint ~ '^https://' and length(endpoint) < 1000),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  sub jsonb not null check (length(sub::text) < 4000),
+  tz text not null default 'UTC' check (length(tz) < 64),
+  made timestamptz not null default now()
+);
+alter table public.push_subs enable row level security;
+drop policy if exists "own push" on public.push_subs;
+create policy "own push" on public.push_subs for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+grant select, insert, update, delete on public.push_subs to authenticated;
+-- What was already sent, so nothing rings twice. Only the reminder job reads it.
+create table if not exists public.push_sent (
+  user_id uuid not null references auth.users on delete cascade,
+  key text not null,
+  made timestamptz not null default now(),
+  primary key (user_id, key)
+);
+alter table public.push_sent enable row level security;
+revoke all on public.push_sent from anon, authenticated;
+-- The job's own settings (signing key, the key the scheduler uses to call it). Nobody else can read them.
+create table if not exists public.push_config (name text primary key, value text not null);
+alter table public.push_config enable row level security;
+revoke all on public.push_config from anon, authenticated;
+-- What the job needs for one person: settings, open tasks near today, and events that could fall near today.
+create or replace function public.remind_items(who uuid, lo text, hi text) returns setof jsonb
+language sql stable security definer set search_path = public as $$
+  select body from records where user_id = who and body ->> 'del' is null and (
+    id = 'settings'
+    or (body ->> 'k' = 'task' and body ->> 'done' is null and body ->> 'date' between lo and hi)
+    or (body ->> 'k' = 'event' and body ->> 'date' <= hi and (jsonb_typeof(body -> 'rule') = 'object' or coalesce(body ->> 'endDate', body ->> 'date') >= lo)))
+$$;
+revoke all on function public.remind_items(uuid, text, text) from public, anon, authenticated;
+grant execute on function public.remind_items(uuid, text, text) to service_role;

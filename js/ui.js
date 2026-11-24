@@ -46,11 +46,36 @@ export function sheet(title, body, { on = {}, setup, save = 'Save', del, wide } 
   d.onpointerdown = (e) => { fromBackdrop = e.target === d; };
   d.onclick = (e) => { if (fromBackdrop && e.target === d) { e.preventDefault(); d.close(); } fromBackdrop = false; };
   setup?.(form, d);
+  // A sheet that opens with the keyboard does not slide up: on iPhone the page would scroll to where the field was
+  // mid-slide, and the top of the sheet (with what you are typing) would end up off the screen.
+  const first = form.querySelector('[autofocus]');
+  if (first) d.classList.add('typing');
   d.showModal();
-  (form.querySelector('[autofocus]') || form.querySelector('[data-close]')).focus();
+  fit();
+  d.scrollTop = 0;
+  (first || form.querySelector('[data-close]')).focus({ preventScroll: true });
+  if (first) {
+    const top = () => { if (document.activeElement === first) d.scrollTop = 0; };
+    requestAnimationFrame(top);
+    setTimeout(top, 350);
+    setTimeout(top, 700);
+  }
+  d.onclose = () => { d.style.removeProperty('--kb'); d.style.removeProperty('--vvh'); };
   return d;
 }
 export const closeSheet = () => $('#sheet').close();
+// Keeps an open sheet above the on-screen keyboard: its bottom sits on the top of the keyboard, and it is never
+// taller than what is left, so the header with Cancel and Save stays in view.
+const vv = globalThis.visualViewport;
+function fit() {
+  const d = document.getElementById('sheet');
+  if (!vv || !d?.open) return;
+  const kb = Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop));
+  d.style.setProperty('--kb', kb + 'px');
+  d.style.setProperty('--vvh', Math.round(vv.height) + 'px');
+}
+vv?.addEventListener('resize', fit);
+vv?.addEventListener('scroll', fit);
 
 export function download(name, text, type) {
   const a = document.createElement('a');

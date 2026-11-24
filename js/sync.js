@@ -125,3 +125,5 @@ export const makeMacKey = () => makeKey('feed_keys');
 export const makeMailKey = () => makeKey('mail_keys', true);
 export const makeWidgetKey = () => makeKey('widget_keys', true);
 export const apple = () => local.get('apple');
+// The signed-in cloud client, for files; null when signed out.
+export const client = () => (sb && state.user ? sb : null);

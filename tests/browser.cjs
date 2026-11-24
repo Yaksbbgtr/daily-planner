@@ -291,6 +291,44 @@ const srv = http.createServer((q, r) => {
   // a switch row (Star this task) spans the sheet, not squeezed to the width of a task tick
   assert.ok(await phone.evaluate(() => document.querySelector('#sheet label.check').offsetWidth > 250), 'switch rows are full width');
   await phone.tap('#sheet [data-close]');
+  // a sheet that opens with the keyboard starts at its top and does not slide (iPhone would scroll it away)
+  await phone.evaluate(() => import('./js/editors.js').then((m) => m.editTask({ id: 'nt', k: 'task', title: '' }, { isNew: true })));
+  await phone.waitForSelector('#sheet[open]'); await phone.waitForTimeout(50);
+  assert.deepEqual(await phone.evaluate(() => [document.querySelector('#sheet').scrollTop, getComputedStyle(document.querySelector('#sheet')).animationName, document.activeElement.name]), [0, 'fadein', 'title']);
+  assert.ok(await phone.evaluate(() => document.querySelectorAll('#sheet .emojis label').length > 150), 'lots of icons to pick from');
+  await phone.tap('#sheet [data-close]');
+  // Today: the arrows and the date picker move to other days
+  await phone.evaluate(() => { location.hash = '#/today'; });
+  const hero = () => phone.textContent('.hero h1');
+  const was = await hero();
+  await phone.click('[data-act=dayStep][data-n="-1"]'); assert.notEqual(await hero(), was);
+  await phone.click('[data-act=pickToday]'); assert.equal(await hero(), was);
+  await phone.evaluate(() => { const i = document.querySelector('#daypick'); i.value = '2026-12-25'; i.dispatchEvent(new Event('change', { bubbles: true })); });
+  assert.match(await phone.textContent('.hero .sub'), /December 25/);
+  await phone.click('[data-act=pickToday]');
+  // Calendar week and day views
+  await phone.evaluate(() => { location.hash = '#/calendar'; }); await phone.click('[data-mode=week]');
+  assert.equal(await phone.locator('.tg-col').count(), 7);
+  await phone.screenshot({ path: shots + '/p-week.png' });
+  await phone.click('.tg-day >> nth=3'); assert.equal(await phone.locator('.tgrid.one .tg-col').count(), 1);
+  await phone.screenshot({ path: shots + '/p-dayview.png' });
+  await phone.click('.tg-slot[data-time="15:00"]'); await phone.fill('#qa', 'Haircut'); await phone.click('#sheet .primary');
+  assert.match(await phone.textContent('.tgrid'), /Haircut/);
+  await phone.click('[data-mode=month]');
+  // A project's own checklist, photos and files
+  const pid = await phone.evaluate(() => import('./js/store.js').then((st) => { const id = 'proj-t'; st.put({ id, k: 'project', made: 1, title: 'Move', color: '#4cc9f0' }); return id; }));
+  await phone.evaluate((id) => { location.hash = '#/tasks/projects/' + id; }, pid);
+  await phone.click('[data-act=renameList][data-proj]'); await phone.fill('#sheet [name=title]', 'Packing'); await phone.click('#sheet .primary');
+  await phone.waitForFunction(() => document.activeElement?.id?.startsWith('ck-'));
+  await phone.keyboard.type('Boxes'); await phone.keyboard.press('Enter');
+  assert.match(await phone.textContent('.pcheck'), /Boxes/);
+  await phone.setInputFiles('.padd input[type=file]', [{ name: 'photo.png', mimeType: 'image/png', buffer: fs.readFileSync(path.join(root, 'icons/icon-192.png')) }, { name: 'Lease.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }]);
+  await phone.waitForSelector('.thumb img.ok');
+  assert.equal(await phone.locator('.thumb').count(), 2);
+  assert.ok(!(await phone.textContent('main')).includes('Packing') || await phone.evaluate(() => import('./js/views/lists.js').then((l) => !l.render().includes('Packing'))), 'project checklists stay off the Lists page');
+  await phone.screenshot({ path: shots + '/p-project.png', fullPage: true });
+  await phone.click('.thumb >> nth=0'); await phone.waitForSelector('#sheet [data-big][src^="blob:"]');
+  await phone.tap('#sheet [data-close]');
   // a new note, list or project opens its page with one draw, without first redrawing the page it came from
   const draws = () => phone.evaluate(() => { window.__draws = 0; window.__mo?.disconnect(); window.__mo = new MutationObserver((ms) => { window.__draws += ms.filter((m) => m.addedNodes.length).length; }); window.__mo.observe(document.querySelector('main'), { childList: true }); });
   await phone.evaluate(() => { location.hash = '#/notes'; }); await phone.waitForSelector('[data-act=newNote]');

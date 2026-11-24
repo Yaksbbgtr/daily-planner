@@ -86,3 +86,24 @@ test('only emails that ask for something become tasks', async () => {
   for (const [t, n] of yes) assert.equal(await is(t, n), true, t);
   for (const [t, n] of no) assert.equal(await is(t, n), false, t);
 });
+test('files and push addresses belong to their owner only', async () => {
+  await as(db, a, "insert into storage.objects (bucket_id, name) values ('files', $1)", [a.id + '/f1']);
+  await assert.rejects(as(db, a, "insert into storage.objects (bucket_id, name) values ('files', $1)", [b.id + '/f2']));
+  assert.equal((await as(db, b, "select count(*)::int as n from storage.objects")).rows[0].n, 0);
+  assert.equal((await as(db, a, "select count(*)::int as n from storage.objects")).rows[0].n, 1);
+  const sub = { endpoint: 'https://push.example/1', keys: { p256dh: 'x', auth: 'y' } };
+  await as(db, a, 'insert into push_subs (endpoint, sub, tz) values ($1, $2, $3)', [sub.endpoint, sub, 'America/New_York']);
+  await assert.rejects(as(db, b, 'insert into push_subs (endpoint, user_id, sub) values ($1, $2, $3)', ['https://push.example/2', a.id, sub]));
+  await assert.rejects(as(db, a, 'insert into push_subs (endpoint, sub) values ($1, $2)', ['http://insecure/1', sub]));
+  assert.equal((await as(db, b, 'select count(*)::int as n from push_subs')).rows[0].n, 0);
+  await assert.rejects(as(db, a, 'select * from push_sent'));
+  await assert.rejects(as(db, a, 'select * from push_config'));
+  await assert.rejects(as(db, a, "select remind_items($1, '2026-01-01', '2027-01-01')", [a.id]));
+});
+test('the reminder job gets settings, open tasks and events near the day', async () => {
+  await push(a, [{ id: 'settings', k: 'settings', u: 1, remEv: 5 }, { id: 'r1', k: 'task', u: 1, date: '2026-11-24', time: '09:00', done: null },
+    { id: 'r2', k: 'task', u: 1, date: '2026-11-24', done: 123 }, { id: 'r3', k: 'task', u: 1, date: '2026-12-30', done: null },
+    { id: 'r4', k: 'event', u: 1, date: '2026-01-01', rule: { f: 'weekly' } }, { id: 'r5', k: 'event', u: 1, date: '2026-01-01', rule: null }, { id: 'r6', k: 'event', u: 1, date: '2026-11-23', time: '10:00' }]);
+  const ids = (await db.query("select remind_items($1, '2026-11-22', '2026-11-26') as b", [a.id])).rows.map((r) => r.b.id).filter((x) => /^(r\d|settings)/.test(x)).sort();
+  assert.deepEqual(ids, ['r1', 'r4', 'r6', 'settings']);
+});

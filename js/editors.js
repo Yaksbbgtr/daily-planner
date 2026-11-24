@@ -6,7 +6,9 @@ import { describe, nextAfter } from './recur.js';
 import { day as hebDay } from './jewish.js';
 import { $, esc, icon, sheet, closeSheet, toast, download, color } from './ui.js';
 import { PICKS, guess, emojiOf, glyph, iconName } from './emoji.js';
+import { LEADS, DEFAULTS as REM, leadName } from './reminders.js';
 
+export const fileGlyph = () => glyph('file-text');
 export const COLORS = ['#ff8a5c', '#ffc145', '#5fd3a5', '#4cc9f0', '#b69cff', '#ff7eb6', '#9aa5b1'];
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAYNAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -56,25 +58,33 @@ function wireIcon(form, kind) {
 }
 // A color picked elsewhere (like a class's calendar color) stays as its own swatch, so saving keeps it.
 const colorField = (cur) => `<div class="colors" role="radiogroup" aria-label="Color">${[...COLORS, ...(/^#[0-9a-f]{6}$/i.test(cur || '') && !COLORS.includes(cur) ? [cur] : [])].map((c, i) => `<label><input type="radio" name="color" value="${c}" ${(cur || COLORS[0]) === c ? 'checked' : ''} aria-label="Color ${i + 1}"><span style="background:${c}"></span></label>`).join('')}</div>`;
+// Reminder for one task or event: the default from Settings, none, or its own.
+function remField(rec, kind) {
+  const d = store.settings()[kind === 'event' ? 'remEv' : 'remTask'] ?? REM[kind === 'event' ? 'remEv' : 'remTask'];
+  const cur = Number.isFinite(rec.rem) ? rec.rem : '';
+  const o = (v, t) => `<option value="${v}" ${String(cur) === String(v) ? 'selected' : ''}>${t}</option>`;
+  return `<label data-remf>Reminder <select name="rem">${o('', d < 0 ? 'Default (off)' : `Default: ${leadName(d).replace(' before', '').toLowerCase()}`)}${o(-1, 'None')}${LEADS.map(([v, n]) => o(v, n)).join('')}</select></label>`;
+}
+const readRem = (f) => (f.rem.value === '' ? null : +f.rem.value);
 const fail = (form, msg) => { const e = $('.err', form); e.textContent = msg; e.hidden = false; return false; };
 const ERR = '<p class="err" role="alert" hidden></p>';
 
 /* ---------- quick add ---------- */
-export function quickAdd({ kind = null, date = null } = {}) {
+export function quickAdd({ kind = null, date = null, time = null } = {}) {
   let picked = kind;
   sheet('Add', `<input id="qa" name="text" autofocus autocomplete="off" enterkeyhint="done" placeholder="Dentist tomorrow 3pm" aria-label="What to add">
     <div class="seg" role="group" aria-label="Type">${[['task', 'Task'], ['event', 'Event'], ['note', 'Note']].map(([k, t]) => `<button type="button" data-kind="${k}">${t}</button>`).join('')}</div>
     <div class="picked qa-preview"><span class="bubble" data-qabub aria-hidden="true">${glyph('circle-check')}</span><p class="preview grow" aria-live="polite"></p></div>${ERR}`, {
     save: 'Add',
     on: { save: (form) => {
-      const r = build(form.text.value, picked, date);
+      const r = build(form.text.value, picked, date, time);
       if (!r.rec.title) return fail(form, 'Type something first.');
       const undo = store.change(() => store.put(r.rec));
       toast(`Added to ${{ task: 'tasks', event: 'calendar', note: 'notes' }[r.kind]}`, undo);
     } },
     setup: (form, d) => {
       const upd = () => {
-        const r = build(form.text.value, picked, date);
+        const r = build(form.text.value, picked, date, time);
         form.querySelectorAll('[data-kind]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.kind === r.kind));
         $('.preview', form).textContent = summary(r);
         $('[data-qabub]', form).innerHTML = glyph(r.kind === 'note' ? 'notebook-pen' : guess(r.rec.title, r.kind));
@@ -85,7 +95,7 @@ export function quickAdd({ kind = null, date = null } = {}) {
       const more = document.createElement('button');
       more.type = 'button'; more.className = 'plain more'; more.textContent = 'More options';
       more.onclick = () => {
-        const r = build(form.text.value, picked, date);
+        const r = build(form.text.value, picked, date, time);
         if (r.kind === 'note') { closeSheet(); store.change(() => store.put(r.rec), { quiet: true }); location.hash = '#/notes/' + r.rec.id; }
         // The full form takes over the open sheet, rather than closing it and rising again.
         else (r.kind === 'event' ? editEvent : editTask)(r.rec, { isNew: true });
@@ -95,8 +105,10 @@ export function quickAdd({ kind = null, date = null } = {}) {
     },
   });
 }
-function build(text, picked, date) {
+function build(text, picked, date, at = null) {
   const p = parse(text);
+  // A tap on an hour in the calendar starts the event at that hour, unless a time is typed.
+  if (at && !p.time) { p.time = at; p.defaultEnd = D.addMinutes(at, 60); }
   const kind = picked || p.kind;
   const id = store.uid(), made = Date.now();
   if (kind === 'note') return { kind, rec: { id, k: 'note', made, title: text.trim(), body: '' } };
@@ -147,9 +159,13 @@ export function editProject(p) {
         if (isNew) location.hash = '#/tasks/projects/' + p.id;
       },
       // Its tasks are kept; they just stop belonging to a project.
+      // Its checklists, photos and files go with it (Undo brings them back).
       del: () => {
         const ts = store.all('task').filter((t) => t.proj === p.id);
-        const undo = store.change(() => { ts.forEach((t) => store.put({ ...t, proj: null })); store.remove(p.id); }, { quiet: true });
+        const ls = store.all('list').filter((l) => l.proj === p.id), its = store.all('item').filter((x) => ls.some((l) => l.id === x.list));
+        const fs = store.all('file').filter((f) => f.proj === p.id);
+        const undo = store.change(() => { ts.forEach((t) => store.put({ ...t, proj: null })); [...ls, ...its, ...fs].forEach((x) => store.remove(x.id)); store.remove(p.id); }, { quiet: true });
+        if (fs.length) import('./files.js').then((m) => m.purgeLater(fs));
         location.hash = '#/tasks/projects';
         toast(ts.length ? `Project deleted. Its ${ts.length} tasks are still in Tasks.` : 'Project deleted', undo);
       },
@@ -177,7 +193,7 @@ export function editTask(t, { isNew } = {}) {
   sheet(isNew ? 'New task' : 'Task', `<label>Task <input name="title" ${isNew ? 'autofocus' : ''} value="${esc(t.title)}"></label>
     ${iconField(t, 'task')}
     <div class="row2"><label>Day <input type="date" name="date" value="${esc(t.date || '')}"></label><label>Time <input type="time" name="time" value="${esc(t.time || '')}"></label></div>
-    <label>How long <select name="dur">${LEN.map(([v, n]) => `<option value="${v}" ${String(t.dur || '') === String(v) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    <div class="row2"><label>How long <select name="dur">${LEN.map(([v, n]) => `<option value="${v}" ${String(t.dur || '') === String(v) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>${remField(t, 'task')}</div>
     ${repeatFields(t.rule)}
     ${projectField(t.proj)}
     <fieldset><legend>Subtasks</legend><div class="sublist" data-subs>${subRows()}</div><div class="inline" style="margin:8px 0 0"><input data-newsub placeholder="Add a subtask" aria-label="Add a subtask"><button type="button" class="plain" data-addsub>Add</button></div></fieldset>
@@ -209,7 +225,7 @@ export function editTask(t, { isNew } = {}) {
         const date = f.date.value || (f.f.value || f.time.value ? D.iso() : null);
         const tags = [...new Set(f.tags.value.toLowerCase().match(/[\p{L}\p{N}_-]+/gu) || [])];
         const checklist = subs.map((x) => ({ ...x, t: x.t.trim() })).filter((x) => x.t);
-        store.change(() => store.put({ ...t, title, date, time: f.time.value || null, dur: +f.dur.value || null, rule: readRepeat(f, t.rule, date), star: f.star.checked, tags, notes: f.notes.value.trim(), emoji: f.emoji.value || null, color: f.color.value, checklist, proj: f.proj.value || null }));
+        store.change(() => store.put({ ...t, title, date, time: f.time.value || null, dur: +f.dur.value || null, rule: readRepeat(f, t.rule, date), star: f.star.checked, tags, notes: f.notes.value.trim(), emoji: f.emoji.value || null, color: f.color.value, checklist, proj: f.proj.value || null, rem: readRem(f) }));
       },
       del: () => toast('Task deleted', store.change(() => store.remove(t.id))),
     },
@@ -225,6 +241,7 @@ export function editEvent(e, { isNew, occ } = {}) {
     <div class="row2"><label>Starts <input type="date" name="date" value="${esc(e.date)}"></label><label data-timed>Time <input type="time" name="time" value="${esc(e.time || '')}"></label></div>
     <div class="row2"><label>Ends <input type="date" name="endDate" value="${esc(e.endDate || e.date)}"></label><label data-timed>Time <input type="time" name="end" value="${esc(e.end || '')}"></label></div>
     <p class="hint" data-heb></p>
+    ${remField(e, 'event')}
     ${repeatFields(e.rule, true)}
     ${repeats ? '<p class="hint">Changes apply to every time this event repeats.</p>' : ''}
     <label>Location <input name="loc" value="${esc(e.loc)}"></label>
@@ -235,7 +252,7 @@ export function editEvent(e, { isNew, occ } = {}) {
       wireRepeat(f);
       wireIcon(f, 'event');
       const timed = () => {
-        f.querySelectorAll('[data-timed]').forEach((x) => { x.hidden = f.allday.checked; });
+        f.querySelectorAll('[data-timed], [data-remf]').forEach((x) => { x.hidden = f.allday.checked; });
         if (!f.allday.checked && !f.time.value) { f.time.value = '09:00'; f.end.value = '10:00'; }
       };
       f.allday.onchange = timed;
@@ -266,7 +283,7 @@ export function editEvent(e, { isNew, occ } = {}) {
         const time = f.allday.checked ? null : f.time.value || null;
         const end = time ? f.end.value || null : null;
         if (time && end && endDate === date && end <= time) return fail(f, 'The end time is not after the start time.');
-        store.change(() => store.put({ ...e, title, date, endDate: endDate > date ? endDate : null, time, end, rule: readRepeat(f, e.rule, date), loc: f.loc.value.trim(), color: f.color.value, notes: f.notes.value.trim(), emoji: f.emoji.value || null }));
+        store.change(() => store.put({ ...e, title, date, endDate: endDate > date ? endDate : null, time, end, rule: readRepeat(f, e.rule, date), loc: f.loc.value.trim(), color: f.color.value, notes: f.notes.value.trim(), emoji: f.emoji.value || null, rem: readRem(f) }));
       },
       del: () => toast('Event deleted', store.change(() => store.remove(e.id))),
     },

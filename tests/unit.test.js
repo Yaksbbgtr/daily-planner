@@ -122,3 +122,32 @@ test('undo', () => {
   assert.equal(store.get('u1').title, 'one');
   assert.equal(store.get('u2'), null);
 });
+
+test('reminders ring at the right moment in the owner\'s time zone', async () => {
+  const Rm = await import('../js/reminders.js');
+  const tz = 'America/New_York', at = (d, t) => Rm.epoch(d, t, tz);
+  assert.equal(new Date(at('2026-11-24', '09:00')).toISOString(), '2026-11-24T14:00:00.000Z');
+  assert.equal(new Date(Rm.epoch('2026-07-01', '09:00', tz)).toISOString(), '2026-07-01T13:00:00.000Z');
+  assert.equal(new Date(Rm.epoch('2026-11-24', '09:00', 'Asia/Jerusalem')).toISOString(), '2026-11-24T07:00:00.000Z');
+  const recs = [
+    { id: 'settings', k: 'settings', remEv: 15 },
+    { id: 't1', k: 'task', title: 'Call bank', date: '2026-11-24', time: '14:00', done: null },
+    { id: 't2', k: 'task', title: 'Groceries', date: '2026-11-24', done: null },
+    { id: 't3', k: 'task', title: 'Done already', date: '2026-11-24', time: '15:00', done: 5 },
+    { id: 't4', k: 'task', title: 'Early', date: '2026-11-24', time: '16:00', rem: 60 },
+    { id: 'e1', k: 'event', title: 'Shiur', date: '2026-11-03', time: '20:30', rule: { f: 'weekly', n: 1 } },
+    { id: 'e2', k: 'event', title: 'Quiet', date: '2026-11-24', time: '20:00', rem: -1 },
+    { id: 'e3', k: 'event', title: 'Trip', date: '2026-11-24', endDate: '2026-11-26' },
+    { id: 'gone', k: 'event', del: 1 },
+  ];
+  const apple = { events: [{ id: 'a1', t: 'Lunch', cal: 'Work', s: at('2026-11-24', '12:00') / 1000 }, { id: 'a2', t: 'Hidden', cal: 'Hidden', s: at('2026-11-24', '13:00') / 1000 }] };
+  recs[0].hideCals = ['Hidden'];
+  const got = Rm.due({ recs, apple, tz, from: at('2026-11-24', '00:00'), to: at('2026-11-25', '00:00') });
+  assert.deepEqual(got.map((x) => [new Date(x.at).toISOString().slice(11, 16), x.title]), [
+    ['13:00', 'Today: 1 all-day · 1 task'], ['16:45', 'Lunch'], ['19:00', 'Call bank'], ['20:00', 'Early'], ['01:15', 'Shiur']]);
+  assert.match(got[0].body, /Trip, Groceries/);
+  // Next week the weekly shiur rings again, with the same key never repeating.
+  const next = Rm.due({ recs, tz, from: at('2026-12-01', '20:00'), to: at('2026-12-01', '20:30') });
+  assert.deepEqual(next.map((x) => x.key), ['e:e1:2026-12-01:15']);
+  assert.deepEqual(Rm.due({ recs: [{ id: 'settings', k: 'settings', remEv: -1, remDay: '' }, ...recs.slice(1)], tz, from: at('2026-11-24', '00:00'), to: at('2026-11-25', '00:00') }).map((x) => x.title), ['Call bank', 'Early']);
+});

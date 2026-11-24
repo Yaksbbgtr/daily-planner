@@ -15,6 +15,8 @@ import * as settings from './views/settings.js';
 import * as rituals from './rituals.js';
 import * as focus from './focus.js';
 import * as checklist from './checklist.js';
+import * as files from './files.js';
+import * as notify from './notify.js';
 
 // The look, applied before anything draws. A copy on this device avoids a flash of the default.
 // On top of the chosen look, your own accent and background colors (Settings > Look).
@@ -131,6 +133,7 @@ function render() {
   const typing = a && main.contains(a) && a.id && 'value' in a && a.type !== 'file' ? { id: a.id, of: a.dataset.day || a.dataset.id, value: a.value, s: a.selectionStart, e: a.selectionEnd, text: /^(text|search|password|textarea)$/.test(a.type) } : null;
   const focusKey = a && main.contains(a) && !typing && a.dataset.act ? [a.dataset.act, a.dataset.id, a.dataset.day] : null;
   main.innerHTML = VIEWS[route[0]].render(route[1], route[2]);
+  VIEWS[route[0]].after?.(main);
   main.querySelectorAll('details[id]').forEach((d) => { d.open = open.has(d.id); });
   if (route[0] === 'notes' && $('#notesearch') && !typing) $('#notesearch').value = notes.st.q;
   if (typing) {
@@ -183,7 +186,7 @@ const ACT = {
   go: (el) => { location.hash = el.dataset.to; },
   quickAdd: (el) => {
     const kind = el.dataset.kind || (route[0] === 'tasks' ? 'task' : null);
-    E.quickAdd({ kind, date: el.dataset.date || (route[0] === 'calendar' && calendar.st.mode === 'month' ? calendar.st.sel : null) });
+    E.quickAdd({ kind, time: el.dataset.time || null, date: el.dataset.date || (route[0] === 'calendar' && calendar.st.mode !== 'list' ? calendar.st.sel : null) });
   },
   toggleTask: (el) => E.toggleTask(el.dataset.id),
   editTask: (el) => E.editTask(store.get(el.dataset.id)),
@@ -195,42 +198,71 @@ const ACT = {
   },
   editHabit: (el) => E.editHabit(el.dataset.id ? store.get(el.dataset.id) : null),
   toggleHabit: (el) => E.toggleHabit(el.dataset.id, el.dataset.day),
-  pickToday: (el) => { today.st.day = el.dataset.day; render(); },
+  pickToday: (el) => { flush(); today.st.day = el.dataset.day; render(); },
+  dayStep: (el) => { flush(); today.st.day = D.addDays(today.st.day || D.iso(), +el.dataset.n); render(); },
   planDay: () => rituals.planDay(),
   wrapDay: () => rituals.wrapDay(),
   rollOver: () => rituals.rollOver(),
   pickDay: (el) => { calendar.select(el.dataset.day); render(); $('.cell.sel')?.focus({ preventScroll: true }); },
   calMove: (el) => {
-    const ym = D.addMonths(calendar.st.ym, +el.dataset.n), t = D.iso();
-    calendar.select(t.startsWith(ym) ? t : ym + '-01');
+    const n = +el.dataset.n, m = calendar.st.mode, t = D.iso();
+    if (m === 'week' || m === 'day') calendar.select(D.addDays(calendar.st.sel, m === 'week' ? 7 * n : n));
+    else { const ym = D.addMonths(calendar.st.ym, n); calendar.select(t.startsWith(ym) ? t : ym + '-01'); }
     render();
   },
-  calToday: () => { calendar.select(D.iso()); render(); },
-  calMode: (el) => { calendar.st.mode = el.dataset.mode; render(); },
+  calToday: () => { calendar.select(D.iso()); calendar.scroll.y = null; render(); },
+  calMode: (el) => { calendar.st.mode = el.dataset.mode; calendar.scroll.y = null; render(); },
+  calDay: (el) => { calendar.select(el.dataset.day); calendar.st.mode = 'day'; render(); },
   tag: (el) => { tasks.st.tag = el.dataset.tag || null; render(); },
   clearDone: () => {
     const done = store.all('task').filter((t) => t.done && (!tasks.st.tag || t.tags?.includes(tasks.st.tag)));
     toast(`Deleted ${done.length} done tasks`, store.change(() => done.forEach((t) => store.remove(t.id))));
   },
+  // A list on the Lists page, or a checklist on a project (data-proj): the checklist stays on the project page.
   renameList: (el) => {
     const l = el.dataset.id ? store.get(el.dataset.id) : null;
-    sheet(l ? 'Edit list' : 'New list', `<label>Name <input name="title" autofocus value="${esc(l?.title)}" placeholder="Shopping"></label><p class="err" role="alert" hidden></p>`, {
-      del: l ? 'Delete list' : null,
+    const proj = l ? l.proj || null : el.dataset.proj || null;
+    const word = proj ? 'checklist' : 'list';
+    sheet(l ? `Edit ${word}` : `New ${word}`, `<label>Name <input name="title" autofocus value="${esc(l?.title)}" placeholder="${proj ? 'Packing' : 'Shopping'}"></label><p class="err" role="alert" hidden></p>`, {
+      del: l ? `Delete ${word}` : null,
       on: {
         save: (f) => {
           const title = f.title.value.trim();
-          if (!title) { $('.err', f).textContent = 'Give the list a name.'; $('.err', f).hidden = false; return false; }
-          const rec = l ? { ...l, title } : { id: store.uid(), k: 'list', made: Date.now(), title };
+          if (!title) { $('.err', f).textContent = `Give the ${word} a name.`; $('.err', f).hidden = false; return false; }
+          const rec = l ? { ...l, title } : { id: store.uid(), k: 'list', made: Date.now(), title, ...(proj ? { proj } : {}) };
           // A new list opens on its own page: the route change draws it, so no extra draw of the old page first.
-          store.change(() => store.put(rec), { quiet: !l });
-          if (!l) location.hash = '#/lists/' + rec.id;
+          store.change(() => store.put(rec), { quiet: !l && !proj });
+          if (!l && !proj) location.hash = '#/lists/' + rec.id;
+          if (!l && proj) setTimeout(() => document.getElementById('ck-' + rec.id)?.focus(), 50);
         },
         del: () => {
           const items = lists.itemsOf(l.id);
-          const undo = store.change(() => { items.forEach((x) => store.remove(x.id)); store.remove(l.id); }, { quiet: true });
-          location.hash = '#/lists';
-          toast('List deleted', undo);
+          const undo = store.change(() => { items.forEach((x) => store.remove(x.id)); store.remove(l.id); }, { quiet: !proj });
+          if (!proj) location.hash = '#/lists';
+          toast(`${proj ? 'Checklist' : 'List'} deleted`, undo);
         },
+      },
+    });
+  },
+  openFile: async (el) => {
+    const f = store.get(el.dataset.id);
+    if (!f) return;
+    const pic = files.isImage(f);
+    sheet(pic ? 'Photo' : 'File', `${pic ? '<div class="bigpic"><img alt="" data-big></div>' : `<div class="picked"><span class="bubble" aria-hidden="true">${E.fileGlyph()}</span><div class="grow"><b dir="auto">${esc(f.name)}</b><p class="hint">${esc(files.size(f.size))}</p></div></div>`}
+      ${pic ? `<p class="hint" dir="auto">${esc(f.name)} · ${esc(files.size(f.size))}</p>` : ''}<p class="hint" data-state>Getting it…</p>
+      <div class="links" data-btns hidden><a class="plain" data-open target="_blank" rel="noopener">Open</a><a class="plain" data-save download="${esc(f.name)}">Save</a>${navigator.canShare ? '<button type="button" class="plain" data-share>Share</button>' : ''}</div>`, {
+      del: 'Delete',
+      on: { del: () => toast('File deleted', files.remove(f)) },
+      setup: async (form) => {
+        const u = await files.url(f);
+        const st = $('[data-state]', form);
+        if (!u) { st.textContent = sync.state.user ? 'This file is not here yet. It shows up once the device that added it has synced.' : 'Sign in to get files added on your other devices.'; return; }
+        st.hidden = true;
+        $('[data-btns]', form).hidden = false;
+        $('[data-open]', form).href = u; $('[data-save]', form).href = u;
+        if (pic) $('[data-big]', form).src = u;
+        const sh = $('[data-share]', form);
+        if (sh) sh.onclick = async () => { try { const b = await files.blob(f); await navigator.share({ files: [new File([b], f.name, { type: f.type })] }); } catch { /* cancelled */ } };
       },
     });
   },
@@ -354,6 +386,18 @@ const ACT = {
     });
     store.setSettings({ widgetOn: store.settings().widgetOn || Date.now() });
   },
+  pushOn: async (el) => {
+    el.disabled = true;
+    try { await notify.turnOn(); toast('Reminders are on for this device'); } catch (e) { toast(e.message); }
+    el.disabled = false;
+    render();
+  },
+  pushOff: async () => { try { await notify.turnOff(); } catch { /* already off */ } toast('Reminders are off for this device'); render(); },
+  pushTest: async (el) => {
+    el.disabled = true;
+    try { const n = await notify.test(); toast(n ? `Sent to ${n} device${n === 1 ? '' : 's'}. It can take a few seconds.` : 'No device has reminders on yet.'); } catch (e) { toast(e.message); }
+    el.disabled = false;
+  },
   backup: () => { flush(); download(`daily-planner-backup-${D.iso()}.json`, JSON.stringify({ app: 'daily-planner', v: 1, made: new Date().toISOString(), recs: store.everything() }), 'application/json'); },
 };
 const SUBMIT = {
@@ -377,13 +421,27 @@ const CHANGE = {
   bg: (el) => { store.setSettings({ bg: el.value || null }); applyTheme(store.settings().theme, ownColors()); },
   ink: (el) => { store.setSettings({ ink: el.value || null }); applyTheme(store.settings().theme, ownColors()); },
   hl: (el) => { store.setSettings({ hl: el.value || null }); applyTheme(store.settings().theme, ownColors()); },
+  remEv: (el) => store.setSettings({ remEv: +el.value }),
+  remTask: (el) => store.setSettings({ remTask: +el.value }),
+  remDay: (el) => store.setSettings({ remDay: el.value }),
   city: (el) => { if (el.value !== 'keep') store.setSettings({ loc: el.value ? J.cityLoc(el.value) : null }); },
   candles: (el) => store.setSettings({ candles: +el.value }),
   ends: (el) => store.setSettings({ ends: el.value }),
   spelling: (el) => store.setSettings({ spelling: el.value }),
   cal: (el) => { const h = store.settings().hideCals.filter((c) => c !== el.value); store.setSettings({ hideCals: el.checked ? h : [...h, el.value] }); },
   moveNote: (el) => { flush(); const n = store.get(el.dataset.id); if (n) store.change(() => store.put({ ...n, folder: el.value || null })); },
+  pickDate: (el) => { if (D.isRealDate(el.value)) { flush(); today.st.day = el.value; render(); } },
   openJournal: (el) => { if (D.isRealDate(el.value) && el.value <= D.iso()) location.hash = '#/notes/journal/' + el.value; },
+  addFiles: async (el) => {
+    const list = [...el.files];
+    el.value = '';
+    if (!list.length) return;
+    toast(list.length > 1 ? `Adding ${list.length} files…` : 'Adding…');
+    try {
+      const big = await files.add(el.dataset.proj, list);
+      toast(big ? `${big === list.length ? 'Not added' : 'Added the rest'}: files over ${files.size(files.MAX)} are too big.` : list.length > 1 ? `Added ${list.length} files` : 'Added');
+    } catch { toast('Could not save that here. This device may be out of space.'); }
+  },
   restore: async (el) => {
     const file = el.files[0];
     if (!file) return;
@@ -441,6 +499,8 @@ document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]');
   if (el && Object.hasOwn(ACT, el.dataset.act)) ACT[el.dataset.act](el);
 });
+// Browsers that only open the date picker from its small icon open it from anywhere on the day's name.
+document.addEventListener('click', (e) => { if (e.target.id === 'daypick') try { e.target.showPicker(); } catch { /* opens by itself */ } });
 document.addEventListener('submit', (e) => {
   const n = e.target.dataset.submit;
   if (n) { e.preventDefault(); SUBMIT[n](e.target); }
@@ -479,7 +539,10 @@ store.onChange((why) => {
   if (why === 'remote' && busyTyping()) { stale = true; return; }
   render();
 });
+let pushChecked = false;
 sync.watch((appleChanged) => {
+  if (sync.state.user && !sync.state.busy) files.upload();
+  if (sync.state.user && !pushChecked) { pushChecked = true; notify.refresh(); }
   const line = $('#syncline');
   if (line) { line.textContent = settings.syncText(); line.className = sync.state.error ? 'late' : ''; }
   if (appleChanged || route[0] === 'settings') { if (busyTyping()) stale = true; else render(); }

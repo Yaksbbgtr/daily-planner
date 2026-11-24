@@ -112,10 +112,12 @@ export function render(sub) {
   const hello = day !== today ? D.friendly(day, today) : hour < 5 ? 'Good night' : hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const late = day === today ? store.all('task').filter((t) => !t.done && t.date && t.date < today).sort(taskSort) : [];
   const dueAll = store.all('task').filter((t) => t.date === day);
-  return `<div class="today"><header class="hero"><div><p class="eyebrow">${esc(hello)}</p><h1>${esc(D.weekday(day))}</h1>
-      <p class="sub">${esc(D.monthDay(day))} · <span lang="he" dir="rtl">${esc(heb.full)}</span>${heb.night ? ' · after sunset' : ''}</p></div>
+  // Tap the day's name or date to jump to any day; the arrows step a day back or forward.
+  return `<div class="today"><header class="hero"><div class="daypick"><p class="eyebrow">${esc(hello)}</p><h1>${esc(D.weekday(day))} <span class="caret" aria-hidden="true">${icon('right')}</span></h1>
+      <p class="sub">${esc(D.monthDay(day))} · <span lang="he" dir="rtl">${esc(heb.full)}</span>${heb.night ? ' · after sunset' : ''}</p>
+      <input type="date" id="daypick" data-change="pickDate" value="${day}" aria-label="Pick a day"></div>
       <a class="roundbtn gear" href="#/settings" aria-label="Settings">${icon('settings')}</a></header>
-    ${day !== today ? `<button class="pillbtn back" data-act="pickToday" data-day="${today}">Back to today</button>` : ''}
+    <div class="daynav"><button class="roundbtn" data-act="dayStep" data-n="-1" aria-label="Day before">${icon('left')}</button>${day !== today ? `<button class="pillbtn" data-act="pickToday" data-day="${today}">Back to today</button>` : `<span class="hint">Tap the date to pick a day</span>`}<button class="roundbtn" data-act="dayStep" data-n="1" aria-label="Day after">${icon('right')}</button></div>
     ${items.length || parsha ? `<div class="chips">${jewishChips(items)}${parsha ? `<span class="chip parsha">${esc(parsha)}</span>` : ''}</div>` : ''}
     ${glance(day, today, dueAll)}
     ${day === today && new Date().getHours() < 11 && !store.get('plan:' + today) ? `<button class="ritual" data-act="planDay"><span class="bubble">${glyph('sun')}</span><span><b>Plan your day</b><span class="meta">Pick what today is for</span></span></button>` : ''}
