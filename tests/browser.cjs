@@ -386,14 +386,33 @@ const srv = http.createServer((q, r) => {
   await mac.locator('.task:not(.done) .editbtn').first().click();
   await mac.click('#sheet [data-focus]');
   await mac.waitForSelector('#focus');
+  const fid = await mac.evaluate(() => JSON.parse(localStorage.getItem('planner.focus')).task);
   await mac.click('#focus [data-len="5"]'); await mac.click('#focus [data-f=go]');
   await mac.clock.runFor(60000);
   assert.match(await mac.textContent('#focus .left'), /^4:0\d$/);
+  // focus time counts toward the task's percentage (no length set: the 5 minute timer is the whole)
+  assert.match(await mac.textContent('#focus [data-ptext]'), /^2\d% done · 1 min focused$/);
   await mac.screenshot({ path: shots + '/focus.png' });
+  await mac.click('#focus [data-f=go]'); // pause logs it
+  const after = await mac.evaluate((id) => import('./js/store.js').then((s) => s.get(id)), fid);
+  assert.ok(after.prog >= 19 && after.prog <= 21 && after.spent >= 0.9, JSON.stringify(after));
+  // set it by hand
+  await mac.locator('#focus [data-plog]').fill('60');
+  assert.equal((await mac.evaluate((id) => import('./js/store.js').then((s) => s.get(id)), fid)).prog, 60);
+  await mac.click('#focus [data-f=go]');
   await mac.click('#focus [data-f=hide]');
   await mac.waitForSelector('#focuspill');
   await mac.clock.runFor(5 * 60000);
-  await mac.waitForFunction(() => /Time is up/.test(document.querySelector('#toast')?.textContent));
+  await mac.waitForFunction(() => /Time is up.*100% done/.test(document.querySelector('#toast')?.textContent));
+  assert.match(await mac.textContent(`.task:has([data-id="${fid}"]) .meta`), /100% done/);
+  // log time yourself in the task: an hour-long task, 30 minutes worked
+  await mac.evaluate((id) => import('./js/store.js').then((s) => s.change(() => s.put({ ...s.get(id), prog: 10, dur: 60 }))), fid);
+  await mac.click(`.editbtn[data-id="${fid}"]`);
+  await mac.fill('#sheet [data-logmin]', '30'); await mac.click('#sheet [data-logtime]');
+  assert.equal(await mac.textContent('#sheet [data-pout]'), '60%');
+  await mac.click('#sheet [type=submit]');
+  const logged = await mac.evaluate((id) => import('./js/store.js').then((s) => s.get(id)), fid);
+  assert.equal(logged.prog, 60); assert.ok(logged.spent >= 34, JSON.stringify(logged));
   // offline through the service worker
   const c = await b.newContext(); const off = await c.newPage(); await off.goto(url);
   await off.evaluate(() => navigator.serviceWorker.ready); await off.reload(); await off.waitForSelector('.hero');

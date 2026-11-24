@@ -646,3 +646,20 @@ input.switch:focus-visible, .check input[type=checkbox]:focus-visible { outline:
 .thumb.doc .sz { font-size: 11px; color: var(--soft); }
 .bigpic { border-radius: 22px; overflow: hidden; background: var(--card); min-height: 160px; display: grid; place-items: center; }
 .bigpic img { display: block; width: 100%; max-height: 62dvh; object-fit: contain; }
+
+/* task progress: focus time and what you log yourself */
+.tprog { display: block; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--soft) 22%, transparent); overflow: hidden; margin-top: 6px; max-width: 220px; }
+.tprog b { display: block; height: 100%; border-radius: inherit; background: var(--c, var(--accent)); transition: width .4s ease; }
+.progf .prow { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.progf input[type=range] { flex: 1; accent-color: var(--accent); min-height: 36px; }
+.progf output { min-width: 3.2em; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+.progf .inline { margin: 0 0 8px; }
+.progf .hint { margin: 0; }
+#focus .fprog { display: grid; justify-items: center; gap: 8px; width: min(78vw, 320px); }
+#focus .fprog .tprog { width: 100%; max-width: none; height: 8px; margin: 0; }
+#focus .fprog [data-ptext] { font-weight: 750; font-variant-numeric: tabular-nums; }
+#focus .fprog label { display: grid; gap: 4px; width: 100%; color: var(--soft); font-size: 14px; font-weight: 600; }
+#focus .fprog input[type=range] { width: 100%; accent-color: var(--accent); }
+.progf input[type=range], #focus .fprog input[type=range] { background: none !important; box-shadow: none !important; padding: 0 !important; border: 0; min-height: 36px; border-radius: 0 !important; -webkit-appearance: auto; appearance: auto; }
+#focus .fprog .tprog b { background: var(--accent); }
+.meta .nw { white-space: nowrap; }

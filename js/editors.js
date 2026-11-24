@@ -181,11 +181,24 @@ export function toggleTask(id) {
   const undo = store.change(() => {
     if (next) {
       store.put({ ...t, id: store.uid(), rule: null, done: Date.now() });
-      store.put({ ...t, date: next });
+      store.put({ ...t, date: next, prog: 0, spent: 0 });
     } else store.put({ ...t, done: Date.now() });
   });
   toast(next ? `Done. Next: ${D.friendly(next)}` : 'Task done', undo);
 }
+// Progress on a task, 0-100. Focus time counts toward it: by the task's length, or the timer's length if it has none.
+export const progOf = (t) => Math.max(0, Math.min(100, Math.round(t?.prog || 0)));
+export const spentText = (m) => { m = Math.round(m || 0); return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}`; };
+export function logTime(id, mins, target) {
+  const t = store.get(id);
+  if (!t || !(mins > 0)) return null;
+  const per = t.dur || target || 25;
+  const prog = Math.min(100, Math.round((t.prog || 0) + (mins / per) * 100));
+  const spent = Math.round(((t.spent || 0) + mins) * 10) / 10;
+  store.change(() => store.put({ ...t, prog, spent }));
+  return { mins, prog, spent };
+}
+export const progBar = (p) => `<span class="tprog" role="progressbar" aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100" aria-label="${p}% done"><b style="width:${p}%"></b></span>`;
 export function editTask(t, { isNew } = {}) {
   const LEN = [['', 'No length'], [15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 hour'], [90, '1½ hours'], [120, '2 hours'], [180, '3 hours']];
   let subs = (t.checklist || []).map((x) => ({ ...x }));
@@ -202,6 +215,9 @@ export function editTask(t, { isNew } = {}) {
     <label class="check"><input type="checkbox" name="star" ${t.star ? 'checked' : ''}> Star this task</label>
     <label>Notes <textarea name="notes" rows="3">${esc(t.notes)}</textarea></label>
     ${/^https:\/\/mail\.google\.com\//.test(t.mail || '') ? `<a class="plain mailbtn" href="${esc(t.mail)}" target="_blank" rel="noopener">${glyph('mail')} Open the email</a>` : ''}
+    ${isNew ? '' : `<fieldset class="progf"><legend>Progress</legend><div class="prow"><input type="range" name="prog" min="0" max="100" step="1" value="${progOf(t)}" aria-label="Percent done"><output data-pout>${progOf(t)}%</output></div>
+      <div class="inline"><input type="number" data-logmin min="1" max="720" inputmode="numeric" placeholder="Minutes worked" aria-label="Minutes worked"><button type="button" class="plain" data-logtime>Log time</button></div>
+      <p class="hint" data-spent>${t.spent ? `${spentText(t.spent)} logged so far.` : `Focus on it, or log what you did yourself.`}${t.dur ? '' : ' Set how long it takes to count time as a percentage.'}</p></fieldset>`}
     ${isNew || t.done ? '' : `<button type="button" class="primary" data-focus>${glyph('target')} Focus on this</button>`}${ERR}`, {
     setup: (f) => {
       wireRepeat(f);
@@ -214,6 +230,23 @@ export function editTask(t, { isNew } = {}) {
       const push = () => { const v = add.value.trim(); if (!v) return; subs.push({ id: store.uid(), t: v, on: false }); add.value = ''; redraw(); add.focus(); };
       f.querySelector('[data-addsub]').onclick = push;
       add.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); push(); } });
+      let spent = t.spent || 0;
+      const pr = f.querySelector('[name=prog]');
+      if (pr) {
+        const out = f.querySelector('[data-pout]'), lm = f.querySelector('[data-logmin]');
+        pr.addEventListener('input', () => { out.textContent = `${pr.value}%`; });
+        const logIt = () => {
+          const m = Math.round(+lm.value);
+          if (!(m > 0)) { lm.focus(); return; }
+          spent += m; lm.value = '';
+          const per = +f.dur.value || 0;
+          if (per) { pr.value = Math.min(100, +pr.value + Math.round((m / per) * 100)); out.textContent = `${pr.value}%`; }
+          f.querySelector('[data-spent]').textContent = `${spentText(spent)} logged so far.${per ? '' : ' Set how long it takes to count time as a percentage.'}`;
+        };
+        f.querySelector('[data-logtime]').onclick = logIt;
+        lm.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); logIt(); } });
+      }
+      f.__spent = () => spent;
       const fb = f.querySelector('[data-focus]');
       if (fb) fb.onclick = () => { closeSheet(); import('./focus.js').then((m) => m.start(t.id)); };
     },
@@ -225,7 +258,7 @@ export function editTask(t, { isNew } = {}) {
         const date = f.date.value || (f.f.value || f.time.value ? D.iso() : null);
         const tags = [...new Set(f.tags.value.toLowerCase().match(/[\p{L}\p{N}_-]+/gu) || [])];
         const checklist = subs.map((x) => ({ ...x, t: x.t.trim() })).filter((x) => x.t);
-        store.change(() => store.put({ ...t, title, date, time: f.time.value || null, dur: +f.dur.value || null, rule: readRepeat(f, t.rule, date), star: f.star.checked, tags, notes: f.notes.value.trim(), emoji: f.emoji.value || null, color: f.color.value, checklist, proj: f.proj.value || null, rem: readRem(f) }));
+        store.change(() => store.put({ ...t, title, date, time: f.time.value || null, dur: +f.dur.value || null, rule: readRepeat(f, t.rule, date), star: f.star.checked, tags, notes: f.notes.value.trim(), emoji: f.emoji.value || null, color: f.color.value, checklist, proj: f.proj.value || null, rem: readRem(f), ...(f.prog ? { prog: +f.prog.value || 0, spent: f.__spent() } : {}) }));
       },
       del: () => toast('Task deleted', store.change(() => store.remove(t.id))),
     },
@@ -374,13 +407,15 @@ export function taskRow(t, { showDate = true, subs = false, noProj = false } = {
   const meta = [];
   if (showDate && t.date) meta.push(`<span class="${!t.done && t.date < today ? 'late' : ''}">${esc(D.friendly(t.date))}</span>`);
   if (t.time) meta.push(D.time(t.time) + (t.dur ? ` · ${t.dur} min` : ''));
+  const pc = progOf(t);
+  if (pc && !t.done) meta.push(`<span class="nw">${pc}% done</span>`);
   if (t.checklist?.length) meta.push(`${glyph('check', 'g s')}${t.checklist.filter((x) => x.on).length}/${t.checklist.length}`);
   if (t.rule) meta.push(`${icon('repeat')}${esc(describe(t.rule))}`);
   const p = !noProj && t.proj && store.get(t.proj);
   if (p) meta.push(`${glyph('folder-kanban', 'g s')}${esc(p.title)}`);
   meta.push(...(t.tags || []).map((x) => `#${esc(x)}`));
   const row = `<li class="task ${t.done ? 'done' : ''}"><button class="tick" data-act="toggleTask" data-id="${esc(t.id)}" role="checkbox" aria-checked="${!!t.done}" aria-label="${esc(t.title)}"></button>
-    <button class="text" data-act="toggleTask" data-id="${esc(t.id)}" aria-hidden="true" tabindex="-1" style="--c:${color(t.color)}"><span class="bubble" aria-hidden="true">${emojiOf(t)}</span><span class="tx"><span class="t">${t.star ? `<span class="star" role="img" aria-label="Starred">${glyph('star', 'g s')}</span>` : ''}${esc(t.title)}</span>${meta.length ? `<span class="meta">${meta.join('<i></i>')}</span>` : ''}</span></button><button class="editbtn" data-act="editTask" data-id="${esc(t.id)}" aria-label="Edit ${esc(t.title)}">${glyph('pencil')}</button></li>`;
+    <button class="text" data-act="toggleTask" data-id="${esc(t.id)}" aria-hidden="true" tabindex="-1" style="--c:${color(t.color)}"><span class="bubble" aria-hidden="true">${emojiOf(t)}</span><span class="tx"><span class="t">${t.star ? `<span class="star" role="img" aria-label="Starred">${glyph('star', 'g s')}</span>` : ''}${esc(t.title)}</span>${meta.length ? `<span class="meta">${meta.join('<i></i>')}</span>` : ''}${pc && !t.done ? progBar(pc) : ''}</span></button><button class="editbtn" data-act="editTask" data-id="${esc(t.id)}" aria-label="Edit ${esc(t.title)}">${glyph('pencil')}</button></li>`;
   // Subtasks right under their task, each with its own round tick.
   if (!subs || t.done || !t.checklist?.length) return row;
   return row + `<li class="steps"><ul>${t.checklist.map((x) => `<li class="${x.on ? 'on' : ''}"><button data-act="toggleStep" data-id="${esc(t.id)}" data-step="${esc(x.id)}" role="checkbox" aria-checked="${!!x.on}"><span class="mini" aria-hidden="true"></span><span dir="auto">${esc(x.t)}</span></button></li>`).join('')}</ul></li>`;
