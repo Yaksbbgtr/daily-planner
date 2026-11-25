@@ -145,6 +145,9 @@ function render() {
   const focusKey = a && main.contains(a) && !typing && a.dataset.act ? [a.dataset.act, a.dataset.id, a.dataset.day] : null;
   main.innerHTML = VIEWS[route[0]].render(route[1], route[2]);
   VIEWS[route[0]].after?.(main);
+  // The checklist tiles scroll sideways once there are more than four: keep the chosen one in sight.
+  const ckOn = main.querySelector('.parts [aria-pressed=true]');
+  if (ckOn) { const row = ckOn.parentElement; if (ckOn.offsetLeft + ckOn.offsetWidth > row.scrollLeft + row.clientWidth || ckOn.offsetLeft < row.scrollLeft) row.scrollLeft = ckOn.offsetLeft - 16; }
   main.querySelectorAll('details[id]').forEach((d) => { d.open = open.has(d.id); });
   if (route[0] === 'notes' && $('#notesearch') && !typing) $('#notesearch').value = notes.st.q;
   if (typing) {
@@ -334,6 +337,7 @@ const ACT = {
   toggleRoutine: (el) => checklist.toggle(el.dataset.id, el.dataset.day),
   editRoutine: (el) => checklist.edit(el.dataset.id ? store.get(el.dataset.id) : null, el.dataset.part),
   sampleRoutine: () => checklist.sample(),
+  editCkList: (el) => checklist.editList(el.dataset.id ? store.get(el.dataset.id) : null),
   toggleStep: (el) => E.toggleStep(el.dataset.id, el.dataset.step),
   pinNote: (el) => { flush(); const n = store.get(el.dataset.id); store.change(() => store.put({ ...n, pin: !n.pin })); },
   deleteNote: (el) => {
