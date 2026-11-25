@@ -3,7 +3,7 @@
 import * as D from './dates.js';
 import * as store from './store.js';
 import { emojiOf, glyph, iconName } from './emoji.js';
-import { esc, sheet, toast, $, icon } from './ui.js';
+import { esc, sheet, toast, $ } from './ui.js';
 import { PICKS } from './emoji.js';
 
 export const PARTS = [['morning', 'Morning', 'sunrise'], ['afternoon', 'Afternoon', 'sun'], ['evening', 'Evening', 'sunset'], ['night', 'Night', 'moon']];
@@ -28,7 +28,7 @@ export function card(day, today) {
   const seg = allParts().map(([k, n, e]) => {
     const l = all.filter((r) => r.part === k), d = l.filter((r) => store.get(cid(r.id, day))).length;
     return `<button data-act="checkPart" data-part="${k}" aria-pressed="${k === part}" aria-label="${esc(n)}${l.length ? `, ${d} of ${l.length} done` : ''}" class="${l.length && d === l.length ? 'full' : ''}"><span class="pe">${glyph(e)}</span><span class="pn" dir="auto">${esc(n)}</span><span class="pc">${l.length && d === l.length ? `${glyph('check', 'g s')} Done` : l.length ? `${d}/${l.length}` : '–'}</span></button>`;
-  }).join('') + `<button class="newck" data-act="editCkList" aria-label="New checklist"><span class="pe">${icon('plus')}</span><span class="pn">New</span><span class="pc">checklist</span></button>`;
+  }).join('');
   const here = all.filter((r) => r.part === part);
   const rows = here.map((r) => {
     const on = !!store.get(cid(r.id, day));
@@ -40,7 +40,7 @@ export function card(day, today) {
   return `<section class="card checklist"><header><h2>Daily checklist</h2><span class="hint">${done}/${all.length}</span></header>
     <div class="parts" role="group" aria-label="Checklists">${seg}</div>
     ${rows ? `<ul class="cklist">${rows}</ul>` : `<p class="empty">Nothing ${own ? `in ${esc(name)}` : `for the ${name}`} yet.</p>`}
-    <div class="pad-s links"><button class="plain" data-act="editRoutine" data-part="${esc(part)}">+ Add to ${esc(name)}</button>${own ? `<button class="plain" data-act="editCkList" data-id="${esc(part)}">Rename</button>` : ''}</div></section>`;
+    <div class="pad-s links"><button class="plain" data-act="editRoutine" data-part="${esc(part)}">+ Add to ${esc(name)}</button></div></section>`;
 }
 
 export function toggle(id, day) {

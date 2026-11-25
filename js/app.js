@@ -147,7 +147,11 @@ function render() {
   VIEWS[route[0]].after?.(main);
   // The checklist tiles scroll sideways once there are more than four: keep the chosen one in sight.
   const ckOn = main.querySelector('.parts [aria-pressed=true]');
-  if (ckOn) { const row = ckOn.parentElement; if (ckOn.offsetLeft + ckOn.offsetWidth > row.scrollLeft + row.clientWidth || ckOn.offsetLeft < row.scrollLeft) row.scrollLeft = ckOn.offsetLeft - 16; }
+  if (ckOn && ckOn.parentElement.scrollWidth > ckOn.parentElement.clientWidth) {
+    const row = ckOn.parentElement, r = row.getBoundingClientRect(), b = ckOn.getBoundingClientRect(), pad = 16;
+    if (b.right > r.right - pad) row.scrollLeft += b.right - r.right + pad;
+    else if (b.left < r.left + pad) row.scrollLeft -= r.left + pad - b.left;
+  }
   main.querySelectorAll('details[id]').forEach((d) => { d.open = open.has(d.id); });
   if (route[0] === 'notes' && $('#notesearch') && !typing) $('#notesearch').value = notes.st.q;
   if (typing) {

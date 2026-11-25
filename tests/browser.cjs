@@ -189,11 +189,16 @@ const srv = http.createServer((q, r) => {
   assert.match(await mac.textContent('.parts [data-part=morning]'), /Done/);
   assert.equal(await mac.locator('.parts [aria-pressed=true]').count(), 1);
   // a checklist of your own, then deleting it with its items
-  await mac.click('.parts .newck'); await mac.fill('#sheet [name=title]', 'Workout'); await mac.click('#sheet .primary');
+  await mac.evaluate(() => { location.hash = '#/settings'; });
+  await mac.click('[data-act=editCkList]:not([data-id])'); await mac.fill('#sheet [name=title]', 'Workout'); await mac.click('#sheet .primary');
+  assert.match(await mac.textContent('.ckrow'), /Workout/);
+  await mac.evaluate(() => { location.hash = '#/today'; }); await mac.waitForSelector('.parts');
   assert.match(await mac.textContent('.parts [aria-pressed=true]'), /Workout/);
   await mac.click('.checklist >> text=+ Add to Workout'); await mac.fill('#sheet [name=title]', 'Pushups'); await mac.click('#sheet .primary');
   assert.deepEqual(await mac.locator('.cklist .ckname').allTextContents(), ['Pushups']);
-  await mac.click('.checklist [data-act=editCkList][data-id]'); await mac.click('#sheet [data-del]');
+  await mac.evaluate(() => { location.hash = '#/settings'; });
+  await mac.click('.ckrow'); await mac.click('#sheet [data-del]');
+  await mac.evaluate(() => { location.hash = '#/today'; }); await mac.waitForSelector('.parts');
   assert.equal(await mac.locator('.parts button', { hasText: 'Workout' }).count(), 0);
   assert.equal(await mac.evaluate(() => import('./js/store.js').then((s) => s.all('routine').filter((r) => r.title === 'Pushups').length)), 0);
   // sync: sign in, then a change on one device shows up on the other by itself

@@ -5,6 +5,8 @@ import { CITIES } from '../jewish.js';
 import { color, esc, icon } from '../ui.js';
 import * as notify from '../notify.js';
 import * as R from '../reminders.js';
+import { mine as myChecklists } from '../checklist.js';
+import { glyph } from '../emoji.js';
 
 export function ago(t) {
   const s = Math.round((Date.now() - t) / 1000);
@@ -44,6 +46,7 @@ export function render() {
     ${colorRow('hl', 'Button highlight', HLS, s.hl)}
     <p class="hint btnsample">Buttons like <span class="plain">Add</span> <span class="plain">Past days</span> and the tab you're on. The highlight follows the button text unless you pick one.</p>
     ${s.accent || s.bg || s.ink || s.hl ? '<button class="plain" data-act="resetColors">Use the look’s own colors</button>' : ''}</div></section>
+  <section class="card"><header><h2>Checklists</h2></header><div class="pad"><p class="hint">The daily checklist on Today has Morning, Afternoon, Evening and Night. Add checklists of your own (like Workout or Shabbos prep); they come back fresh each day too.</p>${myChecklists().map((c) => `<button class="calrow ckrow" data-act="editCkList" data-id="${esc(c.id)}"><span class="ckic" aria-hidden="true">${glyph(c.emoji || 'list-todo')}</span><span class="nm" dir="auto">${esc(c.title)}</span><span class="hint">${((n) => `${n} item${n === 1 ? '' : 's'}`)(store.all('routine').filter((r) => !r.del && r.part === c.id).length)}</span>${icon('right')}</button>`).join('')}<div class="links"><button class="plain" data-act="editCkList">+ New checklist</button></div></div></section>
   <section class="card"><header><h2>Jewish calendar</h2></header><div class="pad">
     <label>Location <select data-change="city">${opt('', 'Not set', s.loc ? 'x' : '')}${custom ? opt('keep', esc(s.loc.name), 'keep') : ''}${CITIES.map((c) => opt(c, c, s.loc?.name)).join('')}</select></label>
     <div class="links"><button class="plain" data-act="locate">Use this device’s location</button></div>

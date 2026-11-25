@@ -415,12 +415,10 @@ li.task.swiping { z-index: 0; isolation: isolate; }
 }
 
 /* ---------- daily checklist ---------- */
-.parts { display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 24px) / 4); gap: 8px; padding: 16px 16px 14px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; }
+.parts { display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 24px) / 4); gap: 8px; padding: 16px 16px 14px; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 16px; scrollbar-width: none; }
 .parts::-webkit-scrollbar { display: none; }
 .parts button { scroll-snap-align: start; min-width: 0; }
 .parts .pn { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.parts .newck { background: none; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--soft); }
-.parts .newck .i { width: 24px; height: 24px; }
 .parts button { display: grid; justify-items: center; gap: 2px; padding: 12px 4px; border-radius: 22px; background: var(--card2); color: var(--soft); transition: background .25s, transform .15s; }
 .parts button:active { transform: scale(.96); }
 .parts .pe { font-size: 26px; line-height: 1.1; }
@@ -705,3 +703,10 @@ input.switch:focus-visible, .check input[type=checkbox]:focus-visible { outline:
 [data-turn=back]::view-transition-new(root) { animation-name: turn-in-back; }
 /* without view transitions (older phones): the new screen fades up */
 main.enter { animation: turn-in-fade .28s cubic-bezier(.2, .8, .2, 1); }
+/* Settings > Checklists */
+.ckrow { width: 100%; text-align: left; background: none; border-radius: 0; }
+.ckrow .nm { flex: 1; min-width: 0; font-weight: 650; }
+.ckrow .ckic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--card2); }
+.ckrow .ckic .g { width: 20px; height: 20px; }
+.ckrow > .i { width: 18px; height: 18px; color: var(--faint); }
+.ckrow:last-of-type { margin-bottom: 8px; }
