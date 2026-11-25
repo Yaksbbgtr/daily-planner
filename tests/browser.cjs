@@ -353,21 +353,24 @@ const srv = http.createServer((q, r) => {
   for (const t of ['dusk', 'daylight', 'gold', 'ocean']) {
     await phone.evaluate((t) => { location.hash = '#/settings'; }, t);
     await phone.click(`.themes input[value=${t}]`, { force: true });
+    // the new look fades in over the whole screen at once
+    await phone.waitForTimeout(400);
     assert.equal(await phone.evaluate(() => document.documentElement.dataset.theme), t);
     await phone.evaluate(() => { location.hash = '#/today'; }); await phone.waitForTimeout(80);
     await phone.screenshot({ path: `${shots}/theme-${t}.png` });
   }
   await phone.evaluate(() => { location.hash = '#/settings'; }); await phone.click('.themes input[value=dusk]', { force: true });
   // your own colors, which reach the other device too
-  await phone.click('.swatches input[name=accent][value="#0088ff"]', { force: true });
-  await phone.click('.swatches input[name=bg][value="#ffffff"]', { force: true });
+  await phone.waitForTimeout(500);
+  await phone.click('.swatches input[name=accent][value="#0088ff"]', { force: true }); await phone.waitForTimeout(500);
+  await phone.click('.swatches input[name=bg][value="#ffffff"]', { force: true }); await phone.waitForTimeout(500);
   assert.equal(await phone.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()), '#0088ff');
   assert.equal(await phone.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(255, 255, 255)');
   await phone.evaluate(() => { location.hash = '#/today'; }); await phone.waitForTimeout(80);
   await phone.screenshot({ path: `${shots}/own-colors.png` });
   await phone.evaluate(() => { location.hash = '#/settings'; });
   // button text and highlight colors
-  for (const sel of ['input[name=ink][value="#ffffff"]', 'input[name=hl][value="none"]']) await phone.$eval('.swatches ' + sel, (el) => el.click());
+  for (const sel of ['input[name=ink][value="#ffffff"]', 'input[name=hl][value="none"]']) { await phone.$eval('.swatches ' + sel, (el) => el.click()); await phone.waitForTimeout(500); }
   assert.equal(await phone.evaluate(() => getComputedStyle(document.querySelector('.btnsample .plain')).color), 'rgb(255, 255, 255)');
   assert.equal(await phone.evaluate(() => getComputedStyle(document.querySelector('.btnsample .plain')).backgroundColor), 'rgba(0, 0, 0, 0)');
   await phone.screenshot({ path: `${shots}/text-colors.png` });

@@ -44,6 +44,17 @@ export function applyTheme(t, own = store.local.get('colors') || {}) {
   const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', HEX.test(own.bg || '') ? own.bg : bg);
 }
+// Changing the look: the whole screen fades from the old colors to the new ones at once, instead of each
+// button, card and line changing on its own timing.
+// Animated swaps (view transitions) where the browser has them, the person has not asked for less motion, and the
+// page is not being driven by a test robot (which expects each change to land at once).
+function smooth() { return !!document.startViewTransition && !navigator.webdriver && !matchMedia('(prefers-reduced-motion: reduce)').matches && document.visibilityState === 'visible'; }
+function recolor(fn) {
+  const root = document.documentElement;
+  const go = () => { root.classList.add('recolor'); fn(); void root.offsetWidth; requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('recolor'))); };
+  if (smooth()) document.startViewTransition(go);
+  else go();
+}
 const ownColors = () => { const s = store.settings(); return { accent: s.accent || null, bg: s.bg || null, ink: s.ink || null, hl: s.hl || null }; };
 applyTheme(store.local.get('theme') || store.settings().theme, store.local.get('colors') || ownColors());
 
@@ -51,7 +62,7 @@ const VIEWS = { today, calendar, tasks, lists, notes, settings };
 const NAMES = { today: 'Today', calendar: 'Calendar', tasks: 'Tasks', lists: 'Lists', notes: 'Notes', settings: 'Settings' };
 const main = $('#main');
 const open = new Set(); // which <details> are open, kept across renders
-let route = [], stale = false, shownDay = D.iso();
+let route = [], stale = false, focusAfter = null, shownDay = D.iso();
 
 function readRoute() {
   const r = location.hash.replace(/^#\/?/, '').split('/').map((x) => { try { return decodeURIComponent(x); } catch { return ''; } });
@@ -147,14 +158,31 @@ function render() {
   document.title = route[0] === 'today' ? 'Daily Planner' : `${NAMES[route[0]]} · Daily Planner`;
   stale = false;
 }
+// Moving between screens: the old one slides and fades into the new one. Tabs further right come in from the
+// right, going into something (a project, a note) comes in from the right, and going back comes in from the left.
+const depth = (r) => r.filter(Boolean).length;
+function turn(swap, dir) {
+  const root = document.documentElement;
+  if (!smooth()) { swap(); main.classList.remove('enter'); void main.offsetWidth; main.classList.add('enter'); return; }
+  root.dataset.turn = dir;
+  const vt = document.startViewTransition(swap);
+  vt.finished.finally(() => { if (root.dataset.turn === dir) delete root.dataset.turn; });
+}
 function go() {
   flush();
   const r = readRoute();
   const moved = r.join('/') !== route.join('/');
   if (r[0] !== 'notes') notes.st.q = '';
-  route = r;
-  if (moved) { document.activeElement?.blur?.(); scrollTo(0, 0); }
-  render();
+  if (!moved || !route.length) { route = r; render(); return; }
+  const tabs = [...nav.querySelectorAll('a')].map((a) => a.dataset.tab);
+  const from = tabNow();
+  const was = route;
+  const swap = () => { route = r; document.activeElement?.blur?.(); scrollTo(0, 0); render(); if (focusAfter) { $(focusAfter)?.focus(); focusAfter = null; } };
+  const to = r[0] === 'tasks' && r[1] === 'projects' ? 'projects' : r[0];
+  let dir = 'fade';
+  if (from !== to) dir = tabs.indexOf(to) > tabs.indexOf(from) ? 'next' : 'back';
+  else if (depth(r) !== depth(was)) dir = depth(r) > depth(was) ? 'next' : 'back';
+  turn(swap, dir);
 }
 
 /* ---------- text that saves as you type ---------- */
@@ -273,8 +301,8 @@ const ACT = {
   newNote: (el) => {
     const rec = { id: store.uid(), k: 'note', made: Date.now(), title: '', body: '', folder: el.dataset.folder || null };
     store.change(() => store.put(rec), { quiet: true });
+    focusAfter = '#notetitle';
     location.hash = '#/notes/' + rec.id;
-    setTimeout(() => $('#notetitle')?.focus(), 0);
   },
   noteFolder: (el) => { notes.st.folder = el.dataset.id || null; render(); },
   editFolder: (el) => {
@@ -348,7 +376,7 @@ const ACT = {
     try { for (const k of await caches.keys()) if (k.startsWith('planner-')) await caches.delete(k); } catch { /* none */ }
     location.replace(location.pathname + '?v=' + Date.now() + location.hash);
   },
-  resetColors: () => { store.setSettings({ accent: null, bg: null, ink: null, hl: null }); applyTheme(store.settings().theme, ownColors()); },
+  resetColors: () => recolor(() => { store.setSettings({ accent: null, bg: null, ink: null, hl: null }); applyTheme(store.settings().theme, ownColors()); }),
   mailSetup: async (el) => {
     el.disabled = true;
     let key;
@@ -416,11 +444,11 @@ const SUBMIT = {
   },
 };
 const CHANGE = {
-  theme: (el) => { applyTheme(el.value, ownColors()); store.setSettings({ theme: el.value }); },
-  accent: (el) => { store.setSettings({ accent: el.value || null }); applyTheme(store.settings().theme, ownColors()); },
-  bg: (el) => { store.setSettings({ bg: el.value || null }); applyTheme(store.settings().theme, ownColors()); },
-  ink: (el) => { store.setSettings({ ink: el.value || null }); applyTheme(store.settings().theme, ownColors()); },
-  hl: (el) => { store.setSettings({ hl: el.value || null }); applyTheme(store.settings().theme, ownColors()); },
+  theme: (el) => recolor(() => { applyTheme(el.value, ownColors()); store.setSettings({ theme: el.value }); }),
+  accent: (el) => recolor(() => { store.setSettings({ accent: el.value || null }); applyTheme(store.settings().theme, ownColors()); }),
+  bg: (el) => recolor(() => { store.setSettings({ bg: el.value || null }); applyTheme(store.settings().theme, ownColors()); }),
+  ink: (el) => recolor(() => { store.setSettings({ ink: el.value || null }); applyTheme(store.settings().theme, ownColors()); }),
+  hl: (el) => recolor(() => { store.setSettings({ hl: el.value || null }); applyTheme(store.settings().theme, ownColors()); }),
   remEv: (el) => store.setSettings({ remEv: +el.value }),
   remTask: (el) => store.setSettings({ remTask: +el.value }),
   remDay: (el) => store.setSettings({ remDay: el.value }),
@@ -534,7 +562,7 @@ const busyTyping = () => main.contains(document.activeElement) && document.activ
 store.onChange((why) => {
   if (why !== 'remote') sync.soon();
   if (why === 'quiet') return;
-  if (why === 'remote') { const s = store.settings(), c = store.local.get('colors') || {}; if ((s.theme && s.theme !== document.documentElement.dataset.theme) || (s.accent || null) !== (c.accent || null) || (s.bg || null) !== (c.bg || null) || (s.ink || null) !== (c.ink || null) || (s.hl || null) !== (c.hl || null)) applyTheme(s.theme, ownColors()); }
+  if (why === 'remote') { const s = store.settings(), c = store.local.get('colors') || {}; if ((s.theme && s.theme !== document.documentElement.dataset.theme) || (s.accent || null) !== (c.accent || null) || (s.bg || null) !== (c.bg || null) || (s.ink || null) !== (c.ink || null) || (s.hl || null) !== (c.hl || null)) recolor(() => applyTheme(s.theme, ownColors())); }
   // Never redraw under someone typing because another device changed something.
   if (why === 'remote' && busyTyping()) { stale = true; return; }
   render();

@@ -675,3 +675,25 @@ input.switch:focus-visible, .check input[type=checkbox]:focus-visible { outline:
 .ftile.add .fic { background: var(--card2); color: var(--ink); }
 .frename { display: flex; justify-content: flex-end; margin: -8px 0 12px; }
 @media (max-width: 619px) { .fgrid { grid-template-columns: repeat(2, 1fr); gap: 10px; } .ftile { min-height: 100px; padding: 14px; } }
+/* changing colors: one smooth fade of the whole screen (see recolor in app.js) */
+.recolor *, .recolor *::before, .recolor *::after { transition: none !important; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .35s; animation-timing-function: ease; }
+
+/* moving between screens (see turn in app.js): the old screen slides and fades into the new one */
+[data-turn] #nav { view-transition-name: dock; }
+::view-transition-old(dock) { display: none; }
+::view-transition-new(dock) { animation: none; }
+@keyframes turn-out-next { to { opacity: 0; transform: translateX(-28px); } }
+@keyframes turn-in-next { from { opacity: 0; transform: translateX(36px); } }
+@keyframes turn-out-back { to { opacity: 0; transform: translateX(28px); } }
+@keyframes turn-in-back { from { opacity: 0; transform: translateX(-36px); } }
+@keyframes turn-out-fade { to { opacity: 0; } }
+@keyframes turn-in-fade { from { opacity: 0; transform: translateY(8px); } }
+[data-turn]::view-transition-old(root) { animation: .2s cubic-bezier(.4, 0, 1, 1) both turn-out-fade; }
+[data-turn]::view-transition-new(root) { animation: .3s cubic-bezier(.2, .8, .2, 1) both turn-in-fade; }
+[data-turn=next]::view-transition-old(root) { animation-name: turn-out-next; }
+[data-turn=next]::view-transition-new(root) { animation-name: turn-in-next; }
+[data-turn=back]::view-transition-old(root) { animation-name: turn-out-back; }
+[data-turn=back]::view-transition-new(root) { animation-name: turn-in-back; }
+/* without view transitions (older phones): the new screen fades up */
+main.enter { animation: turn-in-fade .28s cubic-bezier(.2, .8, .2, 1); }
