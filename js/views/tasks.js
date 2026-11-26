@@ -6,9 +6,10 @@ import { emojiOf } from '../emoji.js';
 import { color, esc, icon, ring } from '../ui.js';
 import * as files from '../files.js';
 import { glyph } from '../emoji.js';
+import { ready as aiReady } from '../ai.js';
 
 export const st = { tag: null };
-const head = (tab, extra = '') => `<header class="bar"><h1>Tasks</h1><div class="tools"><div class="seg" role="group" aria-label="View"><button data-act="go" data-to="#/tasks" aria-pressed="${tab === 'tasks'}">Tasks</button><button data-act="go" data-to="#/tasks/projects" aria-pressed="${tab === 'projects'}">Projects</button></div>${extra}</div></header>`;
+const head = (tab, extra = '') => `<header class="bar"><h1>Tasks</h1><div class="tools"><div class="seg" role="group" aria-label="View"><button data-act="go" data-to="#/tasks" aria-pressed="${tab === 'tasks'}">Tasks</button><button data-act="go" data-to="#/tasks/projects" aria-pressed="${tab === 'projects'}">Projects</button></div>${aiReady() ? '<button class="plain" data-act="askClaude">✨ Ask</button>' : ''}${extra}</div></header>`;
 export const tasksOf = (pid) => store.all('task').filter((t) => t.proj === pid);
 export const checklistsOf = (pid) => store.all('list').filter((l) => l.proj === pid).sort((a, b) => a.made - b.made);
 export const after = (main) => files.hydrate(main);
@@ -70,7 +71,7 @@ function projectPage(pid) {
   if (p?.k !== 'project') return `<p class="empty big">That project is gone. <a href="#/tasks/projects">All projects</a></p>`;
   const ts = tasksOf(pid), open = ts.filter((t) => !t.done).sort(taskSort), done = ts.filter((t) => t.done).sort((a, b) => b.done - a.done);
   const row = (t) => taskRow(t, { subs: true, noProj: true });
-  return `<header class="bar"><div class="crumb"><a class="roundbtn" href="#/tasks/projects" aria-label="All projects">${icon('left')}</a><span class="bubble big" style="--c:${color(p.color)}" aria-hidden="true">${emojiOf({ ...p, k: 'project' })}</span><div><h1 dir="auto">${esc(p.title)}</h1><p class="hint">${ts.length ? `${done.length} of ${ts.length} done` : 'No tasks yet'}${p.due ? ` · due ${esc(D.friendly(p.due))}` : ''}</p></div></div><div class="tools"><button class="plain" data-act="editProject" data-id="${esc(pid)}">Edit</button></div></header>
+  return `<header class="bar"><div class="crumb"><a class="roundbtn" href="#/tasks/projects" aria-label="All projects">${icon('left')}</a><span class="bubble big" style="--c:${color(p.color)}" aria-hidden="true">${emojiOf({ ...p, k: 'project' })}</span><div><h1 dir="auto">${esc(p.title)}</h1><p class="hint">${ts.length ? `${done.length} of ${ts.length} done` : 'No tasks yet'}${p.due ? ` · due ${esc(D.friendly(p.due))}` : ''}</p></div></div><div class="tools">${aiReady() ? `<button class="plain" data-act="askClaude" data-id="${esc(pid)}">✨ Ask</button>` : ''}<button class="plain" data-act="editProject" data-id="${esc(pid)}">Edit</button></div></header>
     <div class="narrow">${ts.length ? `<div class="pbar" style="--c:${color(p.color)}"><i style="width:${Math.round((100 * done.length) / ts.length)}%"></i></div>` : ''}
     ${p.notes ? `<p class="pnotes" dir="auto">${esc(p.notes)}</p>` : ''}
     <form class="inline" data-submit="addTask" data-proj="${esc(pid)}"><input id="newtask" name="t" autocomplete="off" enterkeyhint="done" placeholder="Add a task to this project" aria-label="Add a task"><button class="primary">Add</button></form>

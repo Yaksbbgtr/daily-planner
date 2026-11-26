@@ -235,7 +235,7 @@ export function editTask(t, { isNew } = {}) {
     <div class="row2"><label>How long <select name="dur">${LEN.map(([v, n]) => `<option value="${v}" ${String(t.dur || '') === String(v) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>${remField(t, 'task')}</div>
     ${repeatFields(t.rule)}
     ${projectField(t.proj)}
-    <fieldset><legend>Subtasks</legend><div class="sublist" data-subs>${subRows()}</div><div class="inline" style="margin:8px 0 0"><input data-newsub placeholder="Add a subtask" aria-label="Add a subtask"><button type="button" class="plain" data-addsub>Add</button></div></fieldset>
+    <fieldset><legend>Subtasks</legend><div class="sublist" data-subs>${subRows()}</div><div class="inline" style="margin:8px 0 0"><input data-newsub placeholder="Add a subtask" aria-label="Add a subtask"><button type="button" class="plain" data-addsub>Add</button></div>${ai.ready() ? '<button type="button" class="plain spark" data-aisteps>✨ Break into steps</button>' : ''}</fieldset>
     <fieldset><legend>Color</legend>${colorField(t.color)}</fieldset>
     <label>Tags <input name="tags" value="${esc((t.tags || []).join(' '))}" placeholder="home school" autocapitalize="off"></label>
     <label class="check"><input type="checkbox" name="star" ${t.star ? 'checked' : ''}> Star this task</label>
@@ -256,6 +256,21 @@ export function editTask(t, { isNew } = {}) {
       const push = () => { const v = add.value.trim(); if (!v) return; subs.push({ id: store.uid(), t: v, on: false }); add.value = ''; redraw(); add.focus(); };
       f.querySelector('[data-addsub]').onclick = push;
       add.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); push(); } });
+      // Claude suggests the steps (and how long it takes, if no length is set yet).
+      const sb = f.querySelector('[data-aisteps]');
+      if (sb) sb.onclick = async () => {
+        const title = f.title.value.trim();
+        if (!title) { f.title.focus(); return; }
+        sb.disabled = true; sb.textContent = 'Thinking…';
+        try {
+          const r = await ai.steps({ title, notes: f.notes.value, proj: f.proj.value || null, checklist: subs });
+          r.steps.forEach((x) => subs.push({ id: store.uid(), t: x, on: false }));
+          redraw();
+          if (!f.dur.value && r.minutes) f.dur.value = String(LEN.slice(1).reduce((best, [v]) => (Math.abs(v - r.minutes) < Math.abs(best - r.minutes) ? v : best), 15));
+          if (!r.steps.length) toast('Claude had no steps to add');
+        } catch (e) { toast(e.message); }
+        sb.disabled = false; sb.textContent = '✨ Break into steps';
+      };
       let spent = t.spent || 0;
       const pr = f.querySelector('[name=prog]');
       if (pr) {

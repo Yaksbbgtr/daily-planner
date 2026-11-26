@@ -322,6 +322,37 @@ const srv = http.createServer((q, r) => {
   assert.equal(await phone.evaluate(() => window.__asked.text), 'call mom and gym tomorrow 7am');
   await phone.tap('#toast button');
   assert.equal(await phone.evaluate(() => Object.values(JSON.parse(localStorage.getItem('planner.data')).recs).filter((r) => ['Call mom', 'Gym'].includes(r.title) && !r.del).length), 0, 'one Undo takes both back');
+  // The assistant: sees the planner, proposes changes (bad ids dropped), applies only what is ticked, one Undo
+  const tid = await phone.evaluate(() => Object.values(JSON.parse(localStorage.getItem('planner.data')).recs).find((r) => r.k === 'task' && !r.done && !r.del).id);
+  await phone.evaluate((tid) => { window.__fn.ai = (b) => { window.__asked = b; return b.mode === 'steps' ? { steps: ['Find the number', 'Call'], minutes: 20 } : { reply: 'Here is a plan.\nTwo things.', actions: [
+    { op: 'update', id: tid, kind: 'task', title: null, date: '2026-11-26', time: '09:30', end: null, dur: 30, star: null, notes: null, steps: null, proj: null },
+    { op: 'add', id: null, kind: 'event', title: 'Lunch with Dovid', date: '2026-11-26', time: '12:00', end: null, dur: null, star: null, notes: null, steps: null, proj: null },
+    { op: 'done', id: 'made-up', kind: 'task', title: null, date: null, time: null, end: null, dur: null, star: null, notes: null, steps: null, proj: null },
+  ] }; }; }, tid);
+  await phone.evaluate(() => import('./js/assistant.js').then((m) => m.open({})));
+  await phone.waitForSelector('#askq');
+  await phone.fill('#askq', 'Plan my Thursday');
+  await phone.tap('#sheet .askrow .primary');
+  await phone.waitForSelector('#sheet .proposal');
+  assert.equal(await phone.locator('#sheet .proposal li').count(), 2, 'a made-up id is dropped');
+  const ctx = await phone.evaluate(() => window.__asked);
+  assert.ok(ctx.mode === 'assist' && ctx.context.tasks.some((t) => t.id === ctx.context.tasks[0].id) && ctx.context.days.length === 15, 'Claude gets tasks and two weeks of days');
+  await phone.tap('#sheet .proposal .primary');
+  const moved = await phone.evaluate((tid) => { const r = JSON.parse(localStorage.getItem('planner.data')).recs; return { t: r[tid], lunch: Object.values(r).find((x) => x.title === 'Lunch with Dovid' && !x.del) }; }, tid);
+  assert.ok(moved.t.date === '2026-11-26' && moved.t.time === '09:30' && moved.t.dur === 30, 'the task moved');
+  assert.equal(moved.lunch?.end, '13:00', 'the new event got an hour');
+  await phone.tap('#sheet [data-close]');
+  await phone.tap('#toast button');
+  assert.equal(await phone.evaluate(() => !Object.values(JSON.parse(localStorage.getItem('planner.data')).recs).some((x) => x.title === 'Lunch with Dovid' && !x.del)), true, 'Undo takes the changes back');
+  // Break into steps fills the subtasks and a length
+  await phone.evaluate((tid) => import('./js/editors.js').then((m) => m.editTask(JSON.parse(localStorage.getItem('planner.data')).recs[tid])), tid);
+  await phone.waitForSelector('#sheet [data-aisteps]');
+  await phone.evaluate(() => { document.querySelector('#sheet [name=dur]').value = ''; });
+  await phone.tap('#sheet [data-aisteps]');
+  await phone.waitForFunction(() => document.querySelectorAll('#sheet [data-subt]').length >= 2);
+  assert.equal(await phone.evaluate(() => document.querySelector('#sheet [name=dur]').value), '15', 'about 20 minutes rounds to 15');
+  await phone.tap('#sheet [data-close]');
+  await phone.waitForFunction(() => !document.querySelector('#sheet').open);
   // a sheet that opens with the keyboard starts at its top and does not slide (iPhone would scroll it away)
   await phone.evaluate(() => import('./js/editors.js').then((m) => m.editTask({ id: 'nt', k: 'task', title: '' }, { isNew: true })));
   await phone.waitForSelector('#sheet[open]'); await phone.waitForTimeout(50);

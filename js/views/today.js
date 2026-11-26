@@ -7,6 +7,7 @@ import { taskRow, streak, hid, progOf, progBar } from '../editors.js';
 import { emojiOf, glyph } from '../emoji.js';
 import { color, esc, icon } from '../ui.js';
 import * as checklist from '../checklist.js';
+import { ready as aiReady } from '../ai.js';
 
 export const st = { day: null };
 const p2 = (n) => String(n).padStart(2, '0');
@@ -156,14 +157,14 @@ export function render(sub) {
   return `<div class="today"><header class="hero"><div class="daypick"><p class="eyebrow">${esc(hello)}</p><h1>${esc(D.weekday(day))} <span class="caret" aria-hidden="true">${icon('right')}</span></h1>
       <p class="sub">${esc(D.monthDay(day))} · <span lang="he" dir="rtl">${esc(heb.full)}</span>${heb.night ? ' · after sunset' : ''}</p>
       <input type="date" id="daypick" data-change="pickDate" value="${day}" aria-label="Pick a day"></div>
-      <a class="roundbtn gear" href="#/settings" aria-label="Settings">${icon('settings')}</a></header>
+      <div class="herobtns">${aiReady() ? '<button class="roundbtn spark" data-act="askClaude" aria-label="Ask Claude">✨</button>' : ''}<a class="roundbtn gear" href="#/settings" aria-label="Settings">${icon('settings')}</a></div></header>
     <div class="daynav"><button class="roundbtn" data-act="dayStep" data-n="-1" aria-label="Day before">${icon('left')}</button>${day !== today ? `<button class="pillbtn" data-act="pickToday" data-day="${today}">Back to today</button>` : `<span class="hint">Tap the date to pick a day</span>`}<button class="roundbtn" data-act="dayStep" data-n="1" aria-label="Day after">${icon('right')}</button></div>
     ${items.length || parsha ? `<div class="chips">${jewishChips(items)}${parsha ? `<span class="chip parsha">${esc(parsha)}</span>` : ''}</div>` : ''}
     ${glance(day, today)}
     ${day === today && new Date().getHours() < 11 && !store.get('plan:' + today) ? `<button class="ritual" data-act="planDay"><span class="bubble">${glyph('sun')}</span><span><b>Plan your day</b><span class="meta">Pick what today is for</span></span></button>` : ''}
     ${tefillin(day, today)}
     ${checklist.card(day, today)}
-    ${late.length ? `<section class="card tasks late-card"><header><h2 class="late">Overdue</h2><button class="plain" data-act="rollOver">Move all to today</button></header><ul class="rows">${late.map((t) => taskRow(t)).join('')}</ul></section>` : ''}
+    ${late.length ? `<section class="card tasks late-card"><header><h2 class="late">Overdue</h2>${aiReady() ? '<button class="plain" data-act="askClaude" data-q="Find a good time for my overdue tasks in the next few days">✨ Reschedule</button>' : ''}<button class="plain" data-act="rollOver">Move all to today</button></header><ul class="rows">${late.map((t) => taskRow(t)).join('')}</ul></section>` : ''}
     <div class="cols"><div>${timeline(day, today)}</div><div>
       ${habits(day, today)}
       <section class="card"><header><h2>Journal</h2><button class="plain" data-act="go" data-to="#/notes/journal">Past days</button></header>

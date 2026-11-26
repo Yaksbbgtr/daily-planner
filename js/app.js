@@ -4,6 +4,7 @@ import * as sync from './sync.js';
 import * as J from './jewish.js';
 import { parse } from './quickadd.js';
 import * as ai from './ai.js';
+import * as assistant from './assistant.js';
 import * as E from './editors.js';
 import { eventsOn } from './agenda.js';
 import { $, download, esc, icon, sheet, toast } from './ui.js';
@@ -459,6 +460,7 @@ const ACT = {
     try { const n = await notify.test(); toast(n ? `Sent to ${n} device${n === 1 ? '' : 's'}. It can take a few seconds.` : 'No device has reminders on yet.'); } catch (e) { toast(e.message); }
     el.disabled = false;
   },
+  askClaude: (el) => assistant.open({ focus: el.dataset.id || null, prompt: el.dataset.q || '', send: !!el.dataset.q }),
   aiCheck: async (el) => {
     el.disabled = true;
     try { await ai.check(); toast('Claude is ready'); } catch (e) { toast(e.message); }
@@ -592,6 +594,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (t.matches?.('input, textarea, select')) return;
   if (e.key === 'n') { e.preventDefault(); ACT.quickAdd({ dataset: {} }); }
+  if (e.key === '/' && ai.ready()) { e.preventDefault(); ACT.askClaude({ dataset: {} }); }
   const i = '123456'.indexOf(e.key);
   if (i >= 0) location.hash = '#/' + Object.keys(VIEWS)[i];
 });
@@ -608,12 +611,16 @@ store.onChange((why) => {
   render();
 });
 let pushChecked = false;
+let wasSignedIn = false;
 sync.watch((appleChanged) => {
   if (sync.state.user && !sync.state.busy) files.upload();
   if (sync.state.user && !pushChecked) { pushChecked = true; notify.refresh(); }
   const line = $('#syncline');
   if (line) { line.textContent = settings.syncText(); line.className = sync.state.error ? 'late' : ''; }
-  if (appleChanged || route[0] === 'settings') { if (busyTyping()) stale = true; else render(); }
+  // Signing in or out shows or hides the Claude buttons everywhere.
+  const signedIn = !!sync.state.user, flipped = signedIn !== wasSignedIn;
+  wasSignedIn = signedIn;
+  if (appleChanged || flipped || route[0] === 'settings') { if (busyTyping()) stale = true; else render(); }
   else renderNav();
 });
 

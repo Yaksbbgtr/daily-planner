@@ -3,6 +3,7 @@ import { glyph } from '../emoji.js';
 import * as store from '../store.js';
 import * as J from '../jewish.js';
 import { esc, icon } from '../ui.js';
+import { ready as aiReady } from '../ai.js';
 
 export const st = { q: '', folder: null };
 export const notesIn = (fid) => store.all('note').filter((n) => n.folder === fid);
@@ -16,7 +17,7 @@ export function render(id, day) {
     return head('journal') + `<div class="narrow"><div class="inline">${search}<label class="pickday">Open a day <input type="date" data-change="openJournal" max="${D.iso()}" aria-label="Open a day"></label></div>${days.length ? `<section class="card"><ul class="rows">${days.map((j) => { const d = j.id.slice(2); return `<li><a class="note" href="#/notes/journal/${d}"><span class="t">${esc(D.shortDayYear(d))}</span><span class="meta" dir="auto">${esc(j.body.slice(0, 140))}</span></a></li>`; }).join('')}</ul></section>` : `<p class="empty big">${st.q ? 'Nothing matches that search.' : 'Write in the journal on Today and past days collect here.'}</p>`}</div>`;
   }
   const n = id && store.get(id);
-  if (n?.k === 'note') return `<header class="bar"><div class="crumb"><a class="roundbtn" href="#/notes" aria-label="All notes">${icon('left')}</a><input id="notetitle" class="title" data-save="noteTitle" data-id="${esc(id)}" dir="auto" value="${esc(n.title)}" placeholder="Title" aria-label="Title"></div><div class="tools">${folderPick(n)}<button class="plain" data-act="pinNote" data-id="${esc(id)}" aria-pressed="${!!n.pin}">${n.pin ? 'Unpin' : 'Pin'}</button><button class="plain danger" data-act="deleteNote" data-id="${esc(id)}">Delete</button></div></header><div class="narrow"><textarea id="notebody" class="paper tall" data-save="noteBody" data-id="${esc(id)}" dir="auto" aria-label="Note" placeholder="Write here">${esc(n.body)}</textarea></div>`;
+  if (n?.k === 'note') return `<header class="bar"><div class="crumb"><a class="roundbtn" href="#/notes" aria-label="All notes">${icon('left')}</a><input id="notetitle" class="title" data-save="noteTitle" data-id="${esc(id)}" dir="auto" value="${esc(n.title)}" placeholder="Title" aria-label="Title"></div><div class="tools">${aiReady() ? `<button class="plain" data-act="askClaude" data-id="${esc(id)}">✨ Ask</button>` : ''}${folderPick(n)}<button class="plain" data-act="pinNote" data-id="${esc(id)}" aria-pressed="${!!n.pin}">${n.pin ? 'Unpin' : 'Pin'}</button><button class="plain danger" data-act="deleteNote" data-id="${esc(id)}">Delete</button></div></header><div class="narrow"><textarea id="notebody" class="paper tall" data-save="noteBody" data-id="${esc(id)}" dir="auto" aria-label="Note" placeholder="Write here">${esc(n.body)}</textarea></div>`;
   const folders = store.all('folder').sort((a, b) => a.title.localeCompare(b.title));
   if (st.folder && !folders.some((f) => f.id === st.folder)) st.folder = null;
   const notes = store.all('note').filter((x) => (!st.folder || x.folder === st.folder) && match(x.title + '\n' + x.body)).sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || b.u - a.u);

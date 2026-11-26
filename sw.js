@@ -1,7 +1,7 @@
 // Network first so a push shows up on the next open; the cache covers being offline.
-const CACHE = 'planner-2026.11.26-1'; // match app-version in index.html
+const CACHE = 'planner-2026.11.26-2'; // match app-version in index.html
 const FILES = ['./', 'style.css', 'manifest.webmanifest', 'vendor/hebcal.js', 'vendor/supabase.js', 'js/config.js', 'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png',
-  'js/app.js', 'js/dates.js', 'js/recur.js', 'js/quickadd.js', 'js/ai.js', 'js/merge.js', 'js/store.js', 'js/jewish.js', 'js/sync.js', 'js/ui.js', 'js/agenda.js', 'js/editors.js',
+  'js/app.js', 'js/dates.js', 'js/recur.js', 'js/quickadd.js', 'js/ai.js', 'js/assistant.js', 'js/merge.js', 'js/store.js', 'js/jewish.js', 'js/sync.js', 'js/ui.js', 'js/agenda.js', 'js/editors.js',
   'js/views/today.js', 'js/emoji.js', 'js/glyphs.js', 'mail/script.js', 'widget/script.js', 'js/focus.js', 'js/checklist.js', 'js/rituals.js', 'js/views/calendar.js', 'js/views/tasks.js', 'js/views/lists.js', 'js/views/notes.js', 'js/views/settings.js', 'js/files.js', 'js/reminders.js', 'js/notify.js'];
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())));
 // Only this app's caches: other apps share the same github.io origin.
