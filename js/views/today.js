@@ -56,11 +56,14 @@ function nextCard(day, today) {
 export const tfid = (d) => 'tf:' + d;
 function tefillin(day, today) {
   const s = store.settings();
-  if (s.tfOff || day > today || J.isRestDay(day)) return '';
-  if (store.get(tfid(day))) return `<button class="ritual tfdone" data-act="tefillin" data-day="${day}" aria-pressed="true"><span class="bubble">${glyph('check')}</span><span><b>Tefillin</b><span class="meta">${day === today ? 'Put on today' : 'Put on that day'} · tap to undo</span></span></button>`;
-  const z = J.zmanim(day), sunset = z?.find((x) => x.id === 'sunset')?.at;
-  const hint = day !== today ? 'Did you put them on that day?' : sunset ? `Before sunset at ${J.formatTime(sunset, false)}` : 'Set your location for a reminder before sunset';
-  return `<div class="ritual tfask"><span class="bubble">${glyph('hand-heart')}</span><span><b>${day === today ? 'Did you put on tefillin yet today?' : 'Tefillin'}</b><span class="meta">${esc(hint)}</span></span><button class="primary" data-act="tefillin" data-day="${day}">Did it</button></div>`;
+  // Only today, and only until sunset (6 PM without a location): after that the day for tefillin is over.
+  if (s.tfOff || day !== today || J.isRestDay(day)) return '';
+  const sunset = J.zmanim(day)?.find((x) => x.id === 'sunset')?.at;
+  const end = sunset && !isNaN(sunset) ? +sunset : new Date(`${day}T18:00`).getTime();
+  if (Date.now() >= end) return '';
+  if (store.get(tfid(day))) return `<button class="ritual tfdone" data-act="tefillin" data-day="${day}" aria-pressed="true"><span class="bubble">${glyph('check')}</span><span><b>Tefillin</b><span class="meta">Put on today · tap to undo</span></span></button>`;
+  const hint = sunset ? `Before sunset at ${J.formatTime(sunset, false)}` : 'Set your location for a reminder before sunset';
+  return `<div class="ritual tfask"><span class="bubble">${glyph('hand-heart')}</span><span><b>Did you put on tefillin yet today?</b><span class="meta">${esc(hint)}</span></span><button class="primary" data-act="tefillin" data-day="${day}">Did it</button></div>`;
 }
 
 function glance(day, today) {
