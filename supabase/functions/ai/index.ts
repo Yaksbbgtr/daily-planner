@@ -97,15 +97,22 @@ In reply, say briefly what you suggest or the answer, in plain words. Times like
 const STEPS_SYSTEM = `Break a task from someone's planner into the concrete steps to get it done: usually 3 to 7, each a short action starting with a verb, in order. Do not pad with obvious steps. Also estimate how many minutes the whole task takes, or null if you cannot tell.`;
 
 async function ask(system: string, schema: Record<string, unknown>, content: string, history: { role: 'user' | 'assistant'; content: string }[] = []) {
-  const msg = await claude!.beta.messages.parse({
+  const req = {
     model: 'claude-opus-5-5',
     max_tokens: 16000,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    output_config: { effort: 'low', format: betaJSONSchemaOutputFormat(schema as typeof ITEMS) },
+    output_config: { effort: 'low' as const, format: betaJSONSchemaOutputFormat(schema as typeof ITEMS) },
     system,
-    messages: [...history, { role: 'user', content }],
-  });
+    messages: [...history, { role: 'user' as const, content }],
+  };
+  let msg;
+  try {
+    // With a fallback model in case Claude Opus 5.5 declines.
+    msg = await claude!.beta.messages.parse({ ...req, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' });
+  } catch (e) {
+    // An account that cannot use fallbacks yet: ask again without them.
+    if (!(e instanceof Anthropic.BadRequestError && /fallback/i.test(e.message))) throw e;
+    msg = await claude!.beta.messages.parse(req);
+  }
   if (msg.stop_reason === 'refusal') throw new Say('Claude would not do that.', 422);
   if (msg.stop_reason === 'max_tokens' || !msg.parsed_output) throw new Say('Claude could not finish that. Try asking for less at once.', 502);
   return msg.parsed_output as unknown;
@@ -157,7 +164,11 @@ Deno.serve(async (req) => {
     console.error(e);
     if (e instanceof Anthropic.AuthenticationError) return reply({ error: 'The Anthropic key was not accepted. Run setup-ai.sh again with a new key.' }, 502);
     if (e instanceof Anthropic.RateLimitError) return reply({ error: 'Claude is busy. Try again in a minute.' }, 503);
-    if (e instanceof Anthropic.APIError) return reply({ error: 'Claude is not answering right now.' }, 502);
+    if (e instanceof Anthropic.APIError) {
+      // Say what Anthropic said (e.g. no credit left), never the key.
+      const said = (e.error as { error?: { message?: string } } | undefined)?.error?.message || e.message;
+      return reply({ error: `Claude is not answering (${e.status ?? 'no connection'}): ${String(said).slice(0, 300)}` }, 502);
+    }
     return reply({ error: 'Something went wrong.' }, 500);
   }
 });
