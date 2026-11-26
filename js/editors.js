@@ -7,6 +7,7 @@ import { day as hebDay } from './jewish.js';
 import { $, esc, icon, sheet, closeSheet, toast, download, color } from './ui.js';
 import { PICKS, guess, emojiOf, glyph, iconName } from './emoji.js';
 import { LEADS, DEFAULTS as REM, leadName } from './reminders.js';
+import * as ai from './ai.js';
 
 export const fileGlyph = () => glyph('file-text');
 export const COLORS = ['#ff8a5c', '#ffc145', '#5fd3a5', '#4cc9f0', '#b69cff', '#ff7eb6', '#9aa5b1'];
@@ -101,6 +102,26 @@ export function quickAdd({ kind = null, date = null, time = null } = {}) {
         else (r.kind === 'event' ? editEvent : editTask)(r.rec, { isNew: true });
       };
       $('.body', d).append(more);
+      // Claude reads the whole sentence and can make several entries from it.
+      if (ai.ready()) {
+        const ask = document.createElement('button');
+        ask.type = 'button'; ask.className = 'plain ask'; ask.textContent = '✨ Ask Claude';
+        ask.onclick = async () => {
+          const text = form.text.value.trim();
+          if (!text) return fail(form, 'Type what you need to do, even several things at once.');
+          ask.disabled = true; ask.textContent = 'Asking Claude…';
+          try {
+            const items = await ai.plan(text);
+            if (!items.length) { fail(form, 'Claude found nothing to add in that.'); return; }
+            const recs = items.map((x) => fromClaude(x, date));
+            closeSheet();
+            const undo = store.change(() => recs.forEach((r) => store.put(r)));
+            toast(recs.length === 1 ? `Added “${recs[0].title}”` : `Claude added ${recs.length} things`, undo);
+          } catch (e) { fail(form, e.message); }
+          finally { ask.disabled = false; ask.textContent = '✨ Ask Claude'; }
+        };
+        more.before(ask);
+      }
       upd();
     },
   });
@@ -114,6 +135,11 @@ function build(text, picked, date, at = null) {
   if (kind === 'note') return { kind, rec: { id, k: 'note', made, title: text.trim(), body: '' } };
   if (kind === 'event') return { kind, rec: { id, k: 'event', made, title: p.title, date: p.date || date || D.iso(), time: p.time, end: p.end || p.defaultEnd || null, rule: p.rule, color: COLORS[0], loc: '', notes: '' } };
   return { kind, rec: { id, k: 'task', made, title: p.title, date: p.date || date, time: p.time, rule: p.rule, star: p.star, tags: p.tags, notes: '', done: null } };
+}
+function fromClaude(x, date) {
+  const id = store.uid(), made = Date.now();
+  if (x.kind === 'event') return { id, k: 'event', made, title: x.title, date: x.date || date || D.iso(), time: x.time, end: x.time ? x.end || D.addMinutes(x.time, 60) : null, rule: null, color: COLORS[0], loc: '', notes: x.notes };
+  return { id, k: 'task', made, title: x.title, date: x.date || (x.time ? date || D.iso() : null), time: x.time, rule: null, star: x.star, tags: x.tags, notes: x.notes, done: null };
 }
 function summary({ kind, rec }) {
   if (!rec.title) return 'Dates, times, #tags, “every Monday” and ! are understood.';

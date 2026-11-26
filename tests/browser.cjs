@@ -309,6 +309,19 @@ const srv = http.createServer((q, r) => {
   // a switch row (Star this task) spans the sheet, not squeezed to the width of a task tick
   assert.ok(await phone.evaluate(() => document.querySelector('#sheet label.check').offsetWidth > 250), 'switch rows are full width');
   await phone.tap('#sheet [data-close]');
+  // Ask Claude: one sentence becomes several entries, with one Undo
+  await phone.waitForFunction(() => !document.querySelector('#sheet').open);
+  await phone.evaluate(() => { window.__fn = { ai: (b) => { window.__asked = b; return { items: [{ kind: 'task', title: 'Call mom', date: null, time: null, end: null, star: false, tags: [], notes: '' }, { kind: 'event', title: 'Gym', date: '2026-11-25', time: '07:00', end: null, star: false, tags: [], notes: '' }] }; } }; });
+  await phone.evaluate(() => import('./js/editors.js').then((m) => m.quickAdd({}))); await phone.waitForSelector('#qa');
+  await phone.fill('#qa', 'call mom and gym tomorrow 7am');
+  await phone.tap('#sheet .ask');
+  await phone.waitForFunction(() => /Claude added 2/.test(document.querySelector('#toast').textContent));
+  const made = await phone.evaluate(() => Object.values(JSON.parse(localStorage.getItem('planner.data')).recs).filter((r) => ['Call mom', 'Gym'].includes(r.title) && !r.del));
+  assert.equal(made.length, 2, 'Claude made two entries');
+  assert.equal(made.find((r) => r.title === 'Gym').end, '08:00', 'an event without an end gets an hour');
+  assert.equal(await phone.evaluate(() => window.__asked.text), 'call mom and gym tomorrow 7am');
+  await phone.tap('#toast button');
+  assert.equal(await phone.evaluate(() => Object.values(JSON.parse(localStorage.getItem('planner.data')).recs).filter((r) => ['Call mom', 'Gym'].includes(r.title) && !r.del).length), 0, 'one Undo takes both back');
   // a sheet that opens with the keyboard starts at its top and does not slide (iPhone would scroll it away)
   await phone.evaluate(() => import('./js/editors.js').then((m) => m.editTask({ id: 'nt', k: 'task', title: '' }, { isNew: true })));
   await phone.waitForSelector('#sheet[open]'); await phone.waitForTimeout(50);

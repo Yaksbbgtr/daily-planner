@@ -218,3 +218,17 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function public.remind_items(uuid, text, text) from public, anon, authenticated;
 grant execute on function public.remind_items(uuid, text, text) to service_role;
+
+-- Claude: who may use it (filled by setup-ai.sh with the accounts that exist then) and how much each used today.
+-- Only the ai function reads these; the Anthropic key itself is a function secret, not in the database.
+create table if not exists public.ai_allow (user_id uuid primary key references auth.users on delete cascade);
+alter table public.ai_allow enable row level security;
+revoke all on public.ai_allow from anon, authenticated;
+create table if not exists public.ai_use (
+  user_id uuid not null references auth.users on delete cascade,
+  day date not null,
+  n int not null default 0,
+  primary key (user_id, day)
+);
+alter table public.ai_use enable row level security;
+revoke all on public.ai_use from anon, authenticated;

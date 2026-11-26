@@ -165,3 +165,17 @@ test('tefillin reminder before sunset unless done', async () => {
   assert.equal(R.due({ recs: [...recs, { id: 'settings', remTf: -1 }], ...win }).length, 0);
   assert.equal(R.due({ recs: [...recs, { id: 'settings', tfOff: true }], ...win }).length, 0);
 });
+
+test('what Claude sends back is checked before it is added', async () => {
+  const { clean } = await import('../js/ai.js');
+  const out = clean([
+    { kind: 'event', title: ' Dentist ', date: '2026-11-31', time: '15:00', end: '25:00', star: 'yes', tags: ['#Health!'], notes: null },
+    { title: '' },
+    { kind: 'meeting', title: 'Call mom', date: '2026-11-27', time: null },
+  ]);
+  assert.deepEqual(out, [
+    { kind: 'event', title: 'Dentist', date: null, time: '15:00', end: null, star: false, tags: ['health'], notes: '' },
+    { kind: 'task', title: 'Call mom', date: '2026-11-27', time: null, end: null, star: false, tags: [], notes: '' },
+  ]);
+  assert.deepEqual(clean(null), []);
+});

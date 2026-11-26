@@ -292,6 +292,8 @@ dialog input:not([type=checkbox], [type=radio], [type=file]), dialog select, dia
 dialog .check { background: var(--card); border-radius: var(--r-s); padding: 8px 18px; }
 dialog .danger.wide, dialog .more { min-height: 54px; text-align: center; width: 100%; }
 dialog .more { background: var(--card); color: var(--accent); font-weight: 700; border-radius: 999px; }
+dialog .ask { min-height: 54px; width: 100%; text-align: center; background: var(--card); color: var(--ink); font-weight: 700; border-radius: 999px; margin-bottom: 8px; }
+dialog .ask:disabled { opacity: .6; }
 .preview { color: var(--soft); min-height: 24px; overflow-wrap: anywhere; font-size: 15px; }
 legend { font-size: 14px; font-weight: 700; color: var(--soft); margin-bottom: 8px; }
 .days { display: flex; gap: 6px; flex-wrap: wrap; }

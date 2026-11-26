@@ -36,6 +36,8 @@
     },
     from,
     rpc: (fn, args) => thenable({ kind: 'rpc', fn, args }),
+    // Cloud functions: a test sets window.__fn[name] = (body) => reply.
+    functions: { async invoke(name, { body } = {}) { const f = window.__fn?.[name]; await new Promise((r) => setTimeout(r, 50)); return f ? { data: await f(body), error: null } : { data: null, error: new Error('no function') }; } },
     channel() {
       const ch = { handlers: [], on(type, f, cb) { ch.handlers.push(cb); return ch; }, subscribe() { channels.push(ch); return ch; } };
       return ch;

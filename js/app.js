@@ -3,6 +3,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import * as J from './jewish.js';
 import { parse } from './quickadd.js';
+import * as ai from './ai.js';
 import * as E from './editors.js';
 import { eventsOn } from './agenda.js';
 import { $, download, esc, icon, sheet, toast } from './ui.js';
@@ -456,6 +457,11 @@ const ACT = {
   pushTest: async (el) => {
     el.disabled = true;
     try { const n = await notify.test(); toast(n ? `Sent to ${n} device${n === 1 ? '' : 's'}. It can take a few seconds.` : 'No device has reminders on yet.'); } catch (e) { toast(e.message); }
+    el.disabled = false;
+  },
+  aiCheck: async (el) => {
+    el.disabled = true;
+    try { await ai.check(); toast('Claude is ready'); } catch (e) { toast(e.message); }
     el.disabled = false;
   },
   backup: () => { flush(); download(`daily-planner-backup-${D.iso()}.json`, JSON.stringify({ app: 'daily-planner', v: 1, made: new Date().toISOString(), recs: store.everything() }), 'application/json'); },
