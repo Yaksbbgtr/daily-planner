@@ -211,7 +211,8 @@ revoke all on public.push_config from anon, authenticated;
 create or replace function public.remind_items(who uuid, lo text, hi text) returns setof jsonb
 language sql stable security definer set search_path = public as $$
   select body from records where user_id = who and body ->> 'del' is null and (
-    id = 'settings'
+    id in ('settings', 'tfplan')
+    or (body ->> 'k' = 'tefillin' and body ->> 'day' between lo and hi)
     or (body ->> 'k' = 'task' and body ->> 'done' is null and body ->> 'date' between lo and hi)
     or (body ->> 'k' = 'event' and body ->> 'date' <= hi and (jsonb_typeof(body -> 'rule') = 'object' or coalesce(body ->> 'endDate', body ->> 'date') >= lo)))
 $$;

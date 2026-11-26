@@ -55,6 +55,25 @@ function recolor(fn) {
   if (smooth()) document.startViewTransition(go);
   else go();
 }
+// The coming weeks' sunsets on days tefillin are worn, so the reminder job (which has no Jewish calendar of its
+// own) knows when to ring. Saved quietly when the app opens and when the location or setting changes.
+function planTefillin() {
+  try {
+    const s = store.settings();
+    if (!s.loc || s.tfOff) { if (store.get('tfplan')) store.change(() => store.remove('tfplan'), { quiet: true }); return; }
+    const days = {};
+    for (let i = 0, d = D.iso(); i < 21; i++, d = D.addDays(d, 1)) {
+      if (J.isRestDay(d)) continue;
+      const at = J.zmanim(d)?.find((x) => x.id === 'sunset')?.at;
+      if (at && !isNaN(at)) days[d] = +at;
+    }
+    const old = store.get('tfplan');
+    if (old && JSON.stringify(old.days) === JSON.stringify(days)) return;
+    store.change(() => store.put({ id: 'tfplan', k: 'tfplan', days }), { quiet: true });
+  } catch { /* no location or calendar yet */ }
+}
+let tfTimer = null;
+const planSoon = () => { clearTimeout(tfTimer); tfTimer = setTimeout(planTefillin, 1500); };
 const ownColors = () => { const s = store.settings(); return { accent: s.accent || null, bg: s.bg || null, ink: s.ink || null, hl: s.hl || null }; };
 applyTheme(store.local.get('theme') || store.settings().theme, store.local.get('colors') || ownColors());
 
@@ -340,6 +359,11 @@ const ACT = {
   checkPart: (el) => { checklist.st.part = el.dataset.part; render(); },
   toggleRoutine: (el) => checklist.toggle(el.dataset.id, el.dataset.day),
   editRoutine: (el) => checklist.edit(el.dataset.id ? store.get(el.dataset.id) : null, el.dataset.part),
+  tefillin: (el) => {
+    const id = today.tfid(el.dataset.day);
+    if (store.get(id)) store.change(() => store.remove(id));
+    else { store.change(() => store.put({ id, k: 'tefillin', day: el.dataset.day })); toast('Tefillin: done for today'); }
+  },
   sampleRoutine: () => checklist.sample(),
   editCkList: (el) => checklist.editList(el.dataset.id ? store.get(el.dataset.id) : null),
   toggleStep: (el) => E.toggleStep(el.dataset.id, el.dataset.step),
@@ -460,6 +484,7 @@ const CHANGE = {
   remEv: (el) => store.setSettings({ remEv: +el.value }),
   remTask: (el) => store.setSettings({ remTask: +el.value }),
   remDay: (el) => store.setSettings({ remDay: el.value }),
+  remTf: (el) => { if (el.value === 'off') store.setSettings({ tfOff: true }); else store.setSettings({ tfOff: false, remTf: +el.value }); planTefillin(); },
   city: (el) => { if (el.value !== 'keep') store.setSettings({ loc: el.value ? J.cityLoc(el.value) : null }); },
   candles: (el) => store.setSettings({ candles: +el.value }),
   ends: (el) => store.setSettings({ ends: el.value }),
@@ -570,6 +595,7 @@ const busyTyping = () => main.contains(document.activeElement) && document.activ
 store.onChange((why) => {
   if (why !== 'remote') sync.soon();
   if (why === 'quiet') return;
+  planSoon();
   if (why === 'remote') { const s = store.settings(), c = store.local.get('colors') || {}; if ((s.theme && s.theme !== document.documentElement.dataset.theme) || (s.accent || null) !== (c.accent || null) || (s.bg || null) !== (c.bg || null) || (s.ink || null) !== (c.ink || null) || (s.hl || null) !== (c.hl || null)) recolor(() => applyTheme(s.theme, ownColors())); }
   // Never redraw under someone typing because another device changed something.
   if (why === 'remote' && busyTyping()) { stale = true; return; }
@@ -644,6 +670,7 @@ if (!store.local.get('seed.folders')) {
 }
 
 go();
+planSoon();
 sync.init();
 focus.resume();
 navigator.storage?.persist?.().catch(() => {});

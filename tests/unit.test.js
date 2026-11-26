@@ -151,3 +151,17 @@ test('reminders ring at the right moment in the owner\'s time zone', async () =>
   assert.deepEqual(next.map((x) => x.key), ['e:e1:2026-12-01:15']);
   assert.deepEqual(Rm.due({ recs: [{ id: 'settings', k: 'settings', remEv: -1, remDay: '' }, ...recs.slice(1)], tz, from: at('2026-11-24', '00:00'), to: at('2026-11-25', '00:00') }).map((x) => x.title), ['Call bank', 'Early']);
 });
+
+test('tefillin reminder before sunset unless done', async () => {
+  const R = await import('../js/reminders.js');
+  const sunset = Date.parse('2026-11-25T16:25:00-05:00');
+  const recs = [{ id: 'tfplan', k: 'tfplan', days: { '2026-11-25': sunset } }];
+  const win = { tz: 'America/New_York', from: sunset - 20 * 60000, to: sunset };
+  const got = R.due({ recs, ...win });
+  assert.equal(got.length, 1);
+  assert.equal(got[0].at, sunset - 15 * 60000);
+  assert.match(got[0].body, /4:25/);
+  assert.equal(R.due({ recs: [...recs, { id: 'tf:2026-11-25', k: 'tefillin', day: '2026-11-25' }], ...win }).length, 0);
+  assert.equal(R.due({ recs: [...recs, { id: 'settings', remTf: -1 }], ...win }).length, 0);
+  assert.equal(R.due({ recs: [...recs, { id: 'settings', tfOff: true }], ...win }).length, 0);
+});

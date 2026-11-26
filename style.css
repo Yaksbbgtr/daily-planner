@@ -710,3 +710,20 @@ main.enter { animation: turn-in-fade .28s cubic-bezier(.2, .8, .2, 1); }
 .ckrow .ckic .g { width: 20px; height: 20px; }
 .ckrow > .i { width: 18px; height: 18px; color: var(--faint); }
 .ckrow:last-of-type { margin-bottom: 8px; }
+/* Today: what is happening now or next */
+.glancecard.next { background: linear-gradient(160deg, color-mix(in srgb, var(--c, var(--accent)) 22%, var(--card)), var(--card) 75%); min-width: 0; }
+.glancecard.next .nt { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 800; line-height: 1.2; min-width: 0; }
+.glancecard.next .nt > span:last-child { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.glancecard.next .ne { flex: none; display: grid; place-items: center; width: 30px; height: 30px; color: var(--c, var(--accent)); }
+.glancecard.next .ne .g { width: 22px; height: 22px; }
+.glancecard.next .when { color: var(--c, var(--accent)); }
+.glancecard.next.live .when::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; animation: pulse 1.6s ease-in-out infinite; }
+.glancecard.next.empty .nt { font-size: 17px; color: var(--soft); }
+@keyframes pulse { 50% { opacity: .35; } }
+/* Today: tefillin */
+.ritual.tfask > span:not(.bubble) { flex: 1; min-width: 0; }
+.ritual.tfask b { font-size: 17px; }
+.ritual.tfask .primary { flex: none; min-height: 48px; padding: 0 20px; }
+.ritual.tfdone { padding: 10px 16px; gap: 12px; background: var(--card); }
+.ritual.tfdone .bubble { width: 40px; height: 40px; background: var(--good); color: var(--on-accent); }
+.ritual.tfdone b { font-size: 16px; }

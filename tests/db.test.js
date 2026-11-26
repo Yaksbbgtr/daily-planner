@@ -103,7 +103,8 @@ test('files and push addresses belong to their owner only', async () => {
 test('the reminder job gets settings, open tasks and events near the day', async () => {
   await push(a, [{ id: 'settings', k: 'settings', u: 1, remEv: 5 }, { id: 'r1', k: 'task', u: 1, date: '2026-11-24', time: '09:00', done: null },
     { id: 'r2', k: 'task', u: 1, date: '2026-11-24', done: 123 }, { id: 'r3', k: 'task', u: 1, date: '2026-12-30', done: null },
-    { id: 'r4', k: 'event', u: 1, date: '2026-01-01', rule: { f: 'weekly' } }, { id: 'r5', k: 'event', u: 1, date: '2026-01-01', rule: null }, { id: 'r6', k: 'event', u: 1, date: '2026-11-23', time: '10:00' }]);
-  const ids = (await db.query("select remind_items($1, '2026-11-22', '2026-11-26') as b", [a.id])).rows.map((r) => r.b.id).filter((x) => /^(r\d|settings)/.test(x)).sort();
-  assert.deepEqual(ids, ['r1', 'r4', 'r6', 'settings']);
+    { id: 'r4', k: 'event', u: 1, date: '2026-01-01', rule: { f: 'weekly' } }, { id: 'r5', k: 'event', u: 1, date: '2026-01-01', rule: null }, { id: 'r6', k: 'event', u: 1, date: '2026-11-23', time: '10:00' },
+    { id: 'tfplan', k: 'tfplan', u: 1, days: {} }, { id: 'tf:2026-11-24', k: 'tefillin', u: 1, day: '2026-11-24' }, { id: 'tf:2026-10-01', k: 'tefillin', u: 1, day: '2026-10-01' }]);
+  const ids = (await db.query("select remind_items($1, '2026-11-22', '2026-11-26') as b", [a.id])).rows.map((r) => r.b.id).filter((x) => /^(r\d|settings|tf)/.test(x)).sort();
+  assert.deepEqual(ids, ['r1', 'r4', 'r6', 'settings', 'tf:2026-11-24', 'tfplan']);
 });

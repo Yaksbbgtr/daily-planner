@@ -5,7 +5,7 @@ import * as J from '../jewish.js';
 import { eventsOn, tasksDue, taskSort } from '../agenda.js';
 import { taskRow, streak, hid, progOf, progBar } from '../editors.js';
 import { emojiOf, glyph } from '../emoji.js';
-import { color, esc, icon, ring } from '../ui.js';
+import { color, esc, icon } from '../ui.js';
 import * as checklist from '../checklist.js';
 
 export const st = { day: null };
@@ -24,8 +24,46 @@ export function jewishChips(items) {
 
 
 
-function glance(day, today, dueAll) {
-  const done = dueAll.filter((t) => t.done).length, total = dueAll.length;
+// What is happening now or next: timed events (yours and Apple's) and timed tasks, looking up to two weeks ahead.
+function upcoming(day, today) {
+  const now = Date.now(), from = day === today ? now : new Date(`${day}T00:00`).getTime();
+  for (let i = 0, d = day; i < 14; i++, d = D.addDays(d, 1)) {
+    const items = [
+      ...eventsOn(d).filter((e) => e.time && !e.cont).map((e) => ({ e, d, at: new Date(`${d}T${e.time}`).getTime(), end: e.end ? new Date(`${d}T${e.end}`).getTime() : null })),
+      ...store.all('task').filter((t) => t.date === d && t.time && !t.done).map((t) => ({ t, d, at: new Date(`${d}T${t.time}`).getTime(), end: t.dur ? new Date(`${d}T${t.time}`).getTime() + t.dur * 60000 : null })),
+    ].sort((a, b) => a.at - b.at);
+    const hit = items.find((x) => x.at >= from || (x.end && x.end > from && day === today));
+    if (hit) return hit;
+  }
+  return null;
+}
+function nextCard(day, today) {
+  const x = upcoming(day, today);
+  if (!x) return `<div class="glancecard next empty"><span class="lbl">Next up</span><span class="nt">Nothing on your calendar</span><span class="lbl">for the next two weeks</span></div>`;
+  const now = Date.now(), it = x.e || x.t;
+  const live = x.at <= now && x.end && x.end > now;
+  const until = Math.round((x.at - now) / 60000);
+  const when = live ? `Now · until ${D.time(it.end || D.addMinutes(it.time, it.dur))}`
+    : x.d === today && until < 60 && until >= 0 ? `Next up · in ${Math.max(1, until)} min`
+    : x.d === today ? 'Next up · today' : `Next up · ${D.friendly(x.d, today)}`;
+  const at = [D.time(it.time) + (x.e && x.e.end ? ` – ${D.time(x.e.end)}` : ''), x.e?.loc ? esc(x.e.loc) : ''].filter(Boolean).join(' · ');
+  const act = x.e ? `data-act="openEvent" data-id="${esc(x.e.id)}" data-day="${x.d}" ${x.e.occ ? `data-occ="${x.e.occ}"` : ''}` : `data-act="editTask" data-id="${esc(x.t.id)}"`;
+  return `<button class="glancecard next ${live ? 'live' : ''}" ${act} style="--c:${color(it.color)}"><span class="lbl when">${esc(when)}</span><span class="nt"><span class="ne" aria-hidden="true">${emojiOf({ ...it, k: x.e ? 'event' : 'task' })}</span><span dir="auto">${esc(it.title || 'Untitled')}</span></span><span class="lbl">${at}</span></button>`;
+}
+
+// Tefillin, on days they are worn (not Shabbos or Yom Tov): asks until you tap "Did it". If you have not by a
+// little before sunset, a reminder goes out (reminders.js, from the sunset times saved in planTefillin).
+export const tfid = (d) => 'tf:' + d;
+function tefillin(day, today) {
+  const s = store.settings();
+  if (s.tfOff || day > today || J.isRestDay(day)) return '';
+  if (store.get(tfid(day))) return `<button class="ritual tfdone" data-act="tefillin" data-day="${day}" aria-pressed="true"><span class="bubble">${glyph('check')}</span><span><b>Tefillin</b><span class="meta">${day === today ? 'Put on today' : 'Put on that day'} · tap to undo</span></span></button>`;
+  const z = J.zmanim(day), sunset = z?.find((x) => x.id === 'sunset')?.at;
+  const hint = day !== today ? 'Did you put them on that day?' : sunset ? `Before sunset at ${J.formatTime(sunset, false)}` : 'Set your location for a reminder before sunset';
+  return `<div class="ritual tfask"><span class="bubble">${glyph('hand-heart')}</span><span><b>${day === today ? 'Did you put on tefillin yet today?' : 'Tefillin'}</b><span class="meta">${esc(hint)}</span></span><button class="primary" data-act="tefillin" data-day="${day}">Did it</button></div>`;
+}
+
+function glance(day, today) {
   const z = J.zmanim(day);
   let sun = '';
   if (!z) sun = `<a class="glancecard nudge" href="#/settings"><span class="big">${glyph('map-pin', 'g big')}</span><span>Set your location for zmanim and candle lighting</span></a>`;
@@ -36,7 +74,7 @@ function glance(day, today, dueAll) {
     const show = candles && (day !== today || candles.at > now) ? { name: candles.text, at: candles.at, holy: true } : next || z.find((x) => x.id === 'sunset');
     sun = `<button class="glancecard sun ${show.holy ? 'holy' : ''}" data-act="go" data-to="#/today/zmanim"><span class="lbl">${esc(day === today && !show.holy ? 'Next · ' + show.name : show.name)}</span><span class="big">${esc(J.formatTime(show.at))}</span><span class="lbl">All zmanim ›</span></button>`;
   }
-  return `<div class="glance"><div class="glancecard progress">${ring(done, total)}<div><span class="big">${total ? `${done}/${total}` : '–'}</span><span class="lbl">${total ? (done === total ? 'All done!' : 'tasks done') : 'No tasks yet'}</span></div></div>${sun}</div>`;
+  return `<div class="glance">${nextCard(day, today)}${sun}</div>`;
 }
 
 function timeline(day, today) {
@@ -111,7 +149,6 @@ export function render(sub) {
   const hour = new Date().getHours();
   const hello = day !== today ? D.friendly(day, today) : hour < 5 ? 'Good night' : hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const late = day === today ? store.all('task').filter((t) => !t.done && t.date && t.date < today).sort(taskSort) : [];
-  const dueAll = store.all('task').filter((t) => t.date === day);
   // Tap the day's name or date to jump to any day; the arrows step a day back or forward.
   return `<div class="today"><header class="hero"><div class="daypick"><p class="eyebrow">${esc(hello)}</p><h1>${esc(D.weekday(day))} <span class="caret" aria-hidden="true">${icon('right')}</span></h1>
       <p class="sub">${esc(D.monthDay(day))} · <span lang="he" dir="rtl">${esc(heb.full)}</span>${heb.night ? ' · after sunset' : ''}</p>
@@ -119,9 +156,9 @@ export function render(sub) {
       <a class="roundbtn gear" href="#/settings" aria-label="Settings">${icon('settings')}</a></header>
     <div class="daynav"><button class="roundbtn" data-act="dayStep" data-n="-1" aria-label="Day before">${icon('left')}</button>${day !== today ? `<button class="pillbtn" data-act="pickToday" data-day="${today}">Back to today</button>` : `<span class="hint">Tap the date to pick a day</span>`}<button class="roundbtn" data-act="dayStep" data-n="1" aria-label="Day after">${icon('right')}</button></div>
     ${items.length || parsha ? `<div class="chips">${jewishChips(items)}${parsha ? `<span class="chip parsha">${esc(parsha)}</span>` : ''}</div>` : ''}
-    ${glance(day, today, dueAll)}
+    ${glance(day, today)}
     ${day === today && new Date().getHours() < 11 && !store.get('plan:' + today) ? `<button class="ritual" data-act="planDay"><span class="bubble">${glyph('sun')}</span><span><b>Plan your day</b><span class="meta">Pick what today is for</span></span></button>` : ''}
-    ${day === today && new Date().getHours() >= 17 && !store.get('wrap:' + today) ? `<button class="ritual" data-act="wrapDay"><span class="bubble">${glyph('moon')}</span><span><b>Wrap up the day</b><span class="meta">See what you did and move the rest</span></span></button>` : ''}
+    ${tefillin(day, today)}
     ${checklist.card(day, today)}
     ${late.length ? `<section class="card tasks late-card"><header><h2 class="late">Overdue</h2><button class="plain" data-act="rollOver">Move all to today</button></header><ul class="rows">${late.map((t) => taskRow(t)).join('')}</ul></section>` : ''}
     <div class="cols"><div>${timeline(day, today)}</div><div>

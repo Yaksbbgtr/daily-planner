@@ -4,7 +4,8 @@ import { addDays, time as clock } from './dates.js';
 import { occurrence } from './recur.js';
 
 // Minutes before. remDay is the time of the morning summary of the day's all-day things ('' for none).
-export const DEFAULTS = { remEv: 10, remTask: 0, remDay: '08:00' };
+// remTf: minutes before sunset to remind about tefillin if not marked done that day (-1 for none).
+export const DEFAULTS = { remEv: 10, remTask: 0, remDay: '08:00', remTf: 15 };
 export const LEADS = [[0, 'At the time'], [5, '5 min before'], [10, '10 min before'], [15, '15 min before'], [30, '30 min before'], [60, '1 hour before'], [120, '2 hours before'], [1440, '1 day before']];
 export const leadName = (m) => (LEADS.find(([v]) => v === m)?.[1] || `${m} min before`);
 
@@ -75,6 +76,16 @@ export function due({ recs, apple = null, tz, from, to }) {
       const n = tasks.length, k = events.length + ap.length;
       const head = [k ? `${k} all-day` : '', n ? `${n} task${n === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
       push(`d:${d}:${s.remDay}`, at, `Today: ${head}`, names.slice(0, 6).join(', ') + (names.length > 6 ? ` and ${names.length - 6} more` : ''), 'day');
+    }
+  }
+  // Tefillin: the app saves the coming days' sunsets (tfplan); a day marked done (tf:<day>) is skipped.
+  const plan = recs.find((r) => r.id === 'tfplan' && !r.del);
+  const tf = Number(s.remTf);
+  if (plan?.days && !settings.tfOff && Number.isFinite(tf) && tf >= 0) {
+    for (const [d, sunset] of Object.entries(plan.days)) {
+      if (!Number.isFinite(sunset) || live.some((r) => r.id === 'tf:' + d)) continue;
+      const o = parts(sunset, tz);
+      push(`f:${d}:${tf}`, sunset - tf * 60000, 'Tefillin', `You have not put on tefillin today. Sunset is at ${clock(`${o.hour}:${o.minute}`)}.`, 'tefillin');
     }
   }
   return out.sort((a, b) => a.at - b.at);

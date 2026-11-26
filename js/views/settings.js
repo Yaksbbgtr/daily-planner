@@ -87,6 +87,8 @@ function reminders(s, on) {
     ${notify.ready() && on && ['off', 'on'].includes(st) ? `<div class="links">${st === 'on' ? '<button class="plain" data-act="pushTest">Send a test</button><button class="plain" data-act="pushOff">Turn off here</button>' : '<button class="primary" data-act="pushOn">Turn on reminders</button>'}</div>` : ''}
     <div class="row2"><label>Events <select data-change="remEv">${leads(ev)}</select></label><label>Tasks with a time <select data-change="remTask">${leads(tk)}</select></label></div>
     <label>Morning note (all-day things and to-dos) <select data-change="remDay">${opt('', 'Off', dy)}${['06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '10:00'].map((t) => opt(t, D.time(t), dy)).join('')}</select></label>
+    <label>Tefillin (asks on Today; reminds if not done) <select data-change="remTf">${s.tfOff ? opt('off', 'Off, don’t ask', 'off') : opt('off', 'Off, don’t ask', '')}${[[10, '10 min before sunset'], [15, '15 min before sunset'], [30, '30 min before sunset'], [60, '1 hour before sunset'], [-1, 'Ask, but no reminder']].map(([v, n]) => opt(v, n, s.tfOff ? '' : s.remTf ?? R.DEFAULTS.remTf)).join('')}</select></label>
+    ${!s.loc && !s.tfOff ? '<p class="hint">Set your location (Jewish calendar, below) so the tefillin reminder knows when sunset is.</p>' : ''}
     <p class="hint">Each task and event can have its own reminder too, in its Reminder setting.</p>
     ${soon.length ? `<p class="hint"><b>Coming up:</b> ${soon.map((x) => `${esc(when(x.at))} · ${esc(x.title)}`).join('; ')}</p>` : ''}</div></section>`;
 }
